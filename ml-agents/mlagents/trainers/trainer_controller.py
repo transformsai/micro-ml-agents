@@ -200,10 +200,10 @@ class TrainerController(object):
             A Data structure corresponding to the initial reset state of the
             environment.
         """
+        config = None
         if self.meta_curriculum is not None:
-            return env.reset(config=self.meta_curriculum.get_config())
-        else:
-            return env.reset()
+            config = self.meta_curriculum.get_config()
+        return env.reset(config=config)
 
     def start_learning(self, env: BaseUnityEnvironment, trainer_config):
         # TODO: Should be able to start learning at different lesson numbers
@@ -228,11 +228,11 @@ class TrainerController(object):
                 # Add the _win_handler function to the windows console's handler function list
                 win32api.SetConsoleCtrlHandler(self._win_handler, True)
         try:
-            curr_info = self._reset_env(env)
+            self._reset_env(env)
             while any([t.get_step <= t.get_max_steps \
                        for k, t in self.trainers.items()]) \
                   or not self.train_model:
-                new_info, n_steps = self.take_step(env, curr_info)
+                n_steps = self.advance(env)
                 for i in range(n_steps):
                     for brain_name, trainer in self.trainers.items():
                         # Write training statistics to Tensorboard.
@@ -253,7 +253,6 @@ class TrainerController(object):
                             and self.train_model:
                         # Save Tensorflow model
                         self._save_model(steps=self.global_step)
-                curr_info = new_info
             # Final save Tensorflow model
             if self.global_step != 0 and self.train_model:
                 self._save_model(steps=self.global_step)
@@ -266,7 +265,7 @@ class TrainerController(object):
             self._write_training_metrics()
             self._export_graph()
 
-    def take_step(self, env: BaseUnityEnvironment, curr_info: AllBrainInfo):
+    def advance(self, env: BaseUnityEnvironment):
         if self.meta_curriculum:
             # Get the sizes of the reward buffers.
             reward_buff_sizes = {k: len(t.reward_buffer)
@@ -284,7 +283,7 @@ class TrainerController(object):
         # ready to be reset
         if (self.meta_curriculum
                 and any(lessons_incremented.values())):
-            curr_info = self._reset_env(env)
+            self._reset_env(env)
             for brain_name, trainer in self.trainers.items():
                 trainer.end_episode()
             for brain_name, changed in lessons_incremented.items():
@@ -296,18 +295,20 @@ class TrainerController(object):
         #         trainer.end_episode()
 
         time_start_step = time()
-        curr_info, new_info, take_action_outputs = env.step()
-        new_global_steps = len(new_info[list(new_info.keys())[0]].agents)
-
+        from mlagents.envs.subprocess_environment import StepInfo
+        steps: List[StepInfo] = env.step()
         delta_time_step = time() - time_start_step
+        for step in steps:
+            for brain_name, trainer in self.trainers.items():
+                if brain_name in self.trainer_metrics:
+                    self.trainer_metrics[brain_name].add_delta_step(delta_time_step)
+                trainer.add_experiences(
+                    step.last_all_brain_info, step.current_all_brain_info, step.all_action_info[brain_name].outputs
+                )
+                trainer.process_experiences(step.last_all_brain_info, step.current_all_brain_info)
         for brain_name, trainer in self.trainers.items():
-            if brain_name in self.trainer_metrics:
-                self.trainer_metrics[brain_name].add_delta_step(delta_time_step)
-            trainer.add_experiences(curr_info, new_info,
-                                    take_action_outputs[brain_name])
-            trainer.process_experiences(curr_info, new_info)
             if trainer.is_ready_update() and self.train_model \
                     and trainer.get_step <= trainer.get_max_steps:
                 # Perform gradient descent with experience buffer
                 trainer.update_policy()
-        return new_info, new_global_steps
+        return len(steps)

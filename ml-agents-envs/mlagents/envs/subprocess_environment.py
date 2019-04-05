@@ -23,7 +23,8 @@ class EnvironmentResponse(NamedTuple):
 
 
 class StepInfo(NamedTuple):
-    all_brain_info: AllBrainInfo
+    last_all_brain_info: AllBrainInfo
+    current_all_brain_info: AllBrainInfo
     all_action_info: Dict[str, ActionInfo]
 
 
@@ -121,55 +122,8 @@ class SubprocessUnityEnvironment(BaseUnityEnvironment):
         child_process.start()
         return UnityEnvWorker(child_process, worker_id, parent_conn)
 
-    def _get_last_step_agent_counts(self, env_ids: List[int]):
-        agent_counts = {}
-        all_brains = set()
-        for env_id in env_ids:
-            env_last_brain_info = self.env_last_steps[env_id].payload[0]
-            all_brains = all_brains.union(env_last_brain_info.keys())
-
-        for brain_name in all_brains:
-            agent_counts[brain_name] = []
-
-        for env_id in env_ids:
-            env_last_brain_info = self.env_last_steps[env_id].payload[0]
-            for brain_name in all_brains:
-                if env_last_brain_info.get(brain_name):
-                    agent_counts[brain_name].append(len(env_last_brain_info[brain_name].agents))
-                else:
-                    agent_counts[brain_name].append(0)
-        return agent_counts
-
-    @staticmethod
-    def _get_action_info_slice(self, action_info: ActionInfo, s: slice) -> ActionInfo:
-        memory = None
-        if action_info.memory is not None:
-            memory = action_info.memory[s]
-        text = None
-        if action_info.text is not None:
-            text = action_info.text[s]
-        value = None
-        if action_info.value is not None:
-            value = action_info.value[s]
-        outputs = {}
-        for k, v in action_info.outputs.items():
-            try:
-                outputs[k] = v[s]
-            except IndexError:
-                outputs[k] = v
-        return ActionInfo(
-            action=action_info.action[s],
-            memory=memory,
-            text=text,
-            value=value,
-            outputs=outputs
-        )
-
     def _get_action_for_envs(self, env_ids):
-        # agent_counts = self._get_last_step_agent_counts(env_ids)
-        # all_brain_info = self._merge_step_info([self.env_last_steps[env_id] for env_id in env_ids])
         env_action_infos = {}
-        # combined_action_infos = {}
         for env_id in env_ids:
             env_action_infos[env_id] = {}
             last_step = self.env_last_steps[env_id]
@@ -177,19 +131,6 @@ class SubprocessUnityEnvironment(BaseUnityEnvironment):
             for brain_name in last_all_brain_info:
                 action_info = self.policies[brain_name].get_action(last_all_brain_info[brain_name])
                 env_action_infos[env_id][brain_name] = action_info
-        # for brain_name, policy in self.policies.items():
-        #     if brain_name in all_brain_info.keys():
-        #         combined_action_infos[brain_name] = policy.get_action(all_brain_info[brain_name])
-        #
-        # for brain_name, agent_counts in agent_counts.items():
-        #     combined_action_info = combined_action_infos[brain_name]
-        #     agents_cum = 0
-        #     for i, env_id in enumerate(env_ids):
-        #         if not env_action_infos.get(env_id):
-        #             env_action_infos[env_id] = {}
-        #         env_slice = slice(agents_cum, agents_cum + agent_counts[i])
-        #         agents_cum = agents_cum + agent_counts[i]
-        #         env_action_infos[env_id][brain_name] =_get_action_info_slice(combined_action_info, env_slice)
         return env_action_infos
 
     def _queue_steps(self):
@@ -205,19 +146,19 @@ class SubprocessUnityEnvironment(BaseUnityEnvironment):
             self.envs[worker_id].send('step', action_info)
             self.waiting[worker_id] = True
 
-    def step(self, vector_action=None, memory=None, text_action=None, value=None) -> AllBrainInfo:
+    def step(self, vector_action=None, memory=None, text_action=None, value=None) -> List[StepInfo]:
         self._queue_steps()
 
-        steps = []
+        worker_steps = []
         step_workers = set()
-        while len(steps) < 1:
+        while len(worker_steps) < 1:
             steps_to_requeue = []
             try:
                 while True:
                     step = self.step_queue.get_nowait()
                     self.waiting[step.worker_id] = False
                     if step.worker_id not in step_workers:
-                        steps.append(step)
+                        worker_steps.append(step)
                         step_workers.add(step.worker_id)
                     else:
                         steps_to_requeue.append(step)
@@ -227,34 +168,17 @@ class SubprocessUnityEnvironment(BaseUnityEnvironment):
                 for step in steps_to_requeue:
                     self.step_queue.put(step)
 
-        merged_outputs = {}
-        for step in steps:
-            last_action_infos = step.payload[1]
-            for brain_name, action_info in last_action_infos.items():
-                if merged_outputs.get(brain_name) is None:
-                    merged_outputs[brain_name] = {}
-                for k, v in action_info.outputs.items():
-                    if merged_outputs[brain_name].get(k) is not None:
-                        try:
-                            if isinstance(merged_outputs[brain_name][k], list):
-                                merged_outputs[brain_name][k].extend(v)
-                            elif isinstance(merged_outputs[brain_name][k], np.ndarray):
-                                merged_outputs[brain_name][k] = np.append(merged_outputs[brain_name][k], v, axis=0)
-                        except IndexError as e:
-                            merged_outputs[brain_name][k] = v
-                    else:
-                        merged_outputs[brain_name][k] = v.copy()
-
-        last_steps = []
-        for step in steps:
-            last_steps.append(self.env_last_steps[step.worker_id])
+        step_infos = []
+        for step in worker_steps:
+            step_infos.append(StepInfo(
+                self.env_last_steps[step.worker_id].payload[0],
+                step.payload[0],
+                step.payload[1]
+            ))
             self.env_last_steps[step.worker_id] = step
-        merged_brain_info = self._merge_step_info(steps)
-        merged_last_brain_info = self._merge_step_info(last_steps)
-
         self._queue_steps()
 
-        return merged_last_brain_info, merged_brain_info, merged_outputs
+        return step_infos
 
     def reset(self, config=None, train_mode=True) -> AllBrainInfo:
         self._broadcast_message('reset', (config, train_mode))
