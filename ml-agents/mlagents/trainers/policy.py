@@ -109,7 +109,7 @@ class Policy(object):
         to be passed to add experiences
         """
         if len(brain_info.agents) == 0:
-            return ActionInfo([], [], [], None, None)
+            return ActionInfo([], [], [], None, None, self.get_current_step())
 
         run_out = self.evaluate(brain_info)
         return ActionInfo(
@@ -118,6 +118,7 @@ class Policy(object):
             text=None,
             value=run_out.get("value"),
             outputs=run_out,
+            policy_step=self.get_current_step()
         )
 
     def update(self, mini_batch, num_sequences):

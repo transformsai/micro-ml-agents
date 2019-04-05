@@ -21,8 +21,8 @@ class MockEnvWorker:
 
 class SubprocessEnvironmentTest(unittest.TestCase):
     def test_environments_are_created(self):
-        SubprocessUnityEnvironment.create_worker = MagicMock()
-        env = SubprocessUnityEnvironment(mock_env_factory, 2)
+        SubprocessEnvironmentManager.create_worker = MagicMock()
+        env = SubprocessEnvironmentManager(mock_env_factory, 2)
         # Creates two processes
         self.assertEqual(
             env.create_worker.call_args_list,
@@ -31,14 +31,14 @@ class SubprocessEnvironmentTest(unittest.TestCase):
         self.assertEqual(len(env.envs), 2)
 
     def test_step_async_fails_when_waiting(self):
-        env = SubprocessUnityEnvironment(mock_env_factory, 0)
+        env = SubprocessEnvironmentManager(mock_env_factory, 0)
         env.waiting = True
         with self.assertRaises(UnityEnvironmentException):
             env.step_async(vector_action=[])
 
     @staticmethod
     def test_step_async_splits_input_by_agent_count():
-        env = SubprocessUnityEnvironment(mock_env_factory, 0)
+        env = SubprocessEnvironmentManager(mock_env_factory, 0)
         env.env_agent_counts = {"MockBrain": [1, 3, 5]}
         env.envs = [MockEnvWorker(0), MockEnvWorker(1), MockEnvWorker(2)]
         env_0_actions = [[1.0, 2.0]]
@@ -57,12 +57,12 @@ class SubprocessEnvironmentTest(unittest.TestCase):
         )
 
     def test_step_async_sets_waiting(self):
-        env = SubprocessUnityEnvironment(mock_env_factory, 0)
+        env = SubprocessEnvironmentManager(mock_env_factory, 0)
         env.step_async(vector_action=[])
         self.assertTrue(env.waiting)
 
     def test_step_await_fails_if_not_waiting(self):
-        env = SubprocessUnityEnvironment(mock_env_factory, 0)
+        env = SubprocessEnvironmentManager(mock_env_factory, 0)
         with self.assertRaises(UnityEnvironmentException):
             env.step_await()
 
@@ -85,7 +85,7 @@ class SubprocessEnvironmentTest(unittest.TestCase):
         env_worker_1.recv.return_value = EnvironmentResponse(
             "step", 1, all_brain_info_env1
         )
-        env = SubprocessUnityEnvironment(mock_env_factory, 0)
+        env = SubprocessEnvironmentManager(mock_env_factory, 0)
         env.envs = [env_worker_0, env_worker_1]
         env.waiting = True
         combined_braininfo = env.step_await()["MockBrain"]

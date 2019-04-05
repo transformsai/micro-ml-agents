@@ -7,3 +7,4 @@ class ActionInfo(NamedTuple):
     text: Any
     value: Any
     outputs: Optional[Dict[str, Any]]
+    policy_step: int

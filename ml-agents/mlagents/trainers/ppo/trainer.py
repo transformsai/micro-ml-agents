@@ -270,7 +270,7 @@ class PPOTrainer(Trainer):
                         self.training_buffer[agent_id]["memory"].append(
                             stored_info.memories[idx]
                         )
-                    actions = stored_take_action_outputs["action"]
+                    # actions = stored_take_action_outputs["action"]
                     if self.policy.use_continuous_act:
                         actions_pre = stored_take_action_outputs["pre_action"]
                         self.training_buffer[agent_id]["actions_pre"].append(
@@ -286,7 +286,9 @@ class PPOTrainer(Trainer):
                         )
                     a_dist = stored_take_action_outputs["log_probs"]
                     value = stored_take_action_outputs["value"]
-                    self.training_buffer[agent_id]["actions"].append(actions[idx])
+                    self.training_buffer[agent_id]["actions"].append(
+                        stored_take_action_outputs["action"][idx]
+                    )
                     self.training_buffer[agent_id]["prev_action"].append(
                         stored_info.previous_vector_actions[idx]
                     )
