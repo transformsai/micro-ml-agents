@@ -81,6 +81,7 @@ def run_training(sub_id: int, run_seed: int, run_options, process_queue):
         run_seed,
         base_port + (sub_id * num_envs),
     )
+    print('In learn.py')
     env = SubprocessUnityEnvironment(env_factory, num_envs)
     maybe_meta_curriculum = try_create_meta_curriculum(curriculum_folder, env)
 

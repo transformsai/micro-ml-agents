@@ -19,7 +19,7 @@ namespace MLAgents
         bool m_isOpen;
 
 # if UNITY_EDITOR || UNITY_STANDALONE_WIN || UNITY_STANDALONE_OSX || UNITY_STANDALONE_LINUX
-        /// The Unity to External client. 
+        /// The Unity to External client.
         UnityToExternal.UnityToExternalClient m_client;
 #endif
         /// The communicator parameters sent at construction
@@ -35,7 +35,7 @@ namespace MLAgents
         }
 
         /// <summary>
-        /// Initialize the communicator by sending the first UnityOutput and receiving the 
+        /// Initialize the communicator by sending the first UnityOutput and receiving the
         /// first UnityInput. The second UnityInput is stored in the unityInput argument.
         /// </summary>
         /// <returns>The first Unity Input.</returns>
@@ -47,7 +47,7 @@ namespace MLAgents
 # if UNITY_EDITOR || UNITY_STANDALONE_WIN || UNITY_STANDALONE_OSX || UNITY_STANDALONE_LINUX
             m_isOpen = true;
             var channel = new Channel(
-                "localhost:"+m_communicatorParameters.port, 
+                "localhost:"+m_communicatorParameters.port,
                 ChannelCredentials.Insecure);
 
             m_client = new UnityToExternal.UnityToExternalClient(channel);

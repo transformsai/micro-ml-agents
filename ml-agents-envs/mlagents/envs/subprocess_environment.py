@@ -142,7 +142,6 @@ class SubprocessUnityEnvironment(BaseUnityEnvironment):
                     ]
                 if value and value.get(brain_name) is not None:
                     env_value[brain_name] = value[brain_name][start_ind:end_ind]
-
             env.send("step", (env_actions, env_memory, env_text_action, env_value))
         self.waiting = True
 

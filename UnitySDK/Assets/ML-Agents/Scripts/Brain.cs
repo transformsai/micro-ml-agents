@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 
 namespace MLAgents
@@ -20,6 +21,8 @@ namespace MLAgents
 
         protected Dictionary<Agent, AgentInfo> agentInfos =
             new Dictionary<Agent, AgentInfo>(1024);
+        // protected StreamWriter networkInstrumentationWriter;
+        // string logPath;
 
         protected Batcher brainBatcher;
 
@@ -44,7 +47,7 @@ namespace MLAgents
             }
             LazyInitialize();
         }
-        
+
         /// <summary>
         /// Adds the data of an agent to the current batch so it will be processed in DecideAction.
         /// </summary>
@@ -75,7 +78,7 @@ namespace MLAgents
                 }
             }
         }
-        
+
         /// <summary>
         /// Called by the Academy when it shuts down. This ensures that the Brain cleans up properly
         /// after scene changes.
@@ -84,8 +87,9 @@ namespace MLAgents
         {
             if (_isInitialized)
             {
+                // networkInstrumentationWriter.Close();
                 agentInfos.Clear();
-                
+
                 _isInitialized = false;
             }
         }
@@ -95,6 +99,8 @@ namespace MLAgents
         /// </summary>
         private void BrainDecideAction()
         {
+            // networkInstrumentationWriter.WriteLine("imma,write,"+brainBatcher?.GetNumberMessageReceived().ToString());
+            // networkInstrumentationWriter.Flush();
             brainBatcher?.SendBrainInfo(name, agentInfos);
             DecideAction();
         }

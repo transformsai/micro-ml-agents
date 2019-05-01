@@ -2,19 +2,22 @@
 using System.Linq;
 using UnityEngine;
 using Google.Protobuf;
+using System.Diagnostics;
+using System.IO;
+
 
 namespace MLAgents
 {
     /// <summary>
-    /// The batcher is an RL specific class that makes sure that the information each object in 
-    /// Unity (Academy and Brains) wants to send to External is appropriately batched together 
+    /// The batcher is an RL specific class that makes sure that the information each object in
+    /// Unity (Academy and Brains) wants to send to External is appropriately batched together
     /// and sent only when necessary.
-    /// 
+    ///
     /// The Batcher will only send a Message to the Communicator when either :
     ///     1 - The academy is done
     ///     2 - At least one brain has data to send
-    /// 
-    /// At each step, the batcher will keep track of the brains that queried the batcher for that 
+    ///
+    /// At each step, the batcher will keep track of the brains that queried the batcher for that
     /// step. The batcher can only send the batched data when all the Brains have queried the
     /// Batcher.
     /// </summary>
@@ -57,17 +60,36 @@ namespace MLAgents
         /// Keeps track of the number of messages received
         private ulong m_messagesReceived;
 
+        // Network Instrumentation Stuff
+        private StreamWriter networkInstrumentationWriter;
+        string logPath;
+        string totalTimePerStep;
+        string totalSerializationTimePerStep;
+        string totalDeserializationTimePerStep;
+        string totalExchangeTimePerStep;
+
+
+
+
         /// <summary>
         /// Initializes a new instance of the Batcher class.
         /// </summary>
         /// <param name="communicator">The communicator to be used by the batcher.</param>
+         ~Batcher(){
+             networkInstrumentationWriter.Close();
+
+        }
         public Batcher(Communicator communicator)
         {
+            logPath =  Path.GetFullPath(".") + "/UnityNetworkInstrumentation.csv";
+            networkInstrumentationWriter = new StreamWriter(logPath);
+            networkInstrumentationWriter.AutoFlush = true;
+            networkInstrumentationWriter.WriteLine("Message NO, Total Time Per Step, Total Serialization Time, Total Deserialization Time, Total Exchange Time");
             this.m_communicator = communicator;
         }
 
         /// <summary>
-        /// Sends the academy parameters through the Communicator. 
+        /// Sends the academy parameters through the Communicator.
         /// Is used by the academy to send the AcademyParameters to the communicator.
         /// </summary>
         /// <returns>The External Initialization Parameters received.</returns>
@@ -104,7 +126,7 @@ namespace MLAgents
         /// Registers the done flag of the academy to the next output to be sent
         /// to the communicator.
         /// </summary>
-        /// <param name="done">If set to <c>true</c> 
+        /// <param name="done">If set to <c>true</c>
         /// The academy done state will be sent to External at the next Exchange.</param>
         public void RegisterAcademyDoneFlag(bool done)
         {
@@ -164,7 +186,7 @@ namespace MLAgents
 
         /// <summary>
         /// Sends the brain info. If at least one brain has an agent in need of
-        /// a decision or if the academy is done, the data is sent via 
+        /// a decision or if the academy is done, the data is sent via
         /// Communicator. Else, a new step is realized. The data can only be
         /// sent once all the brains that subscribed to the batcher have tried
         /// to send information.
@@ -174,13 +196,15 @@ namespace MLAgents
         public void SendBrainInfo(
             string brainKey, Dictionary<Agent, AgentInfo> agentInfo)
         {
+
+            Stopwatch totalPerStepTimer = Stopwatch.StartNew();
             // If no communicator is initialized, the Batcher will not transmit
             // BrainInfo
             if (m_communicator == null)
             {
                 return;
             }
-
+            Stopwatch totalSerializationTimer = Stopwatch.StartNew();
             // The brain tried called GiveBrainInfo, update m_hasQueried
             m_hasQueried[brainKey] = true;
             // Populate the currentAgents dictionary
@@ -202,7 +226,8 @@ namespace MLAgents
 
                 m_hasData[brainKey] = true;
             }
-
+            totalSerializationTimer.Stop();
+            this.totalSerializationTimePerStep  = totalSerializationTimer.ElapsedMilliseconds.ToString();
             // If any agent needs to send data, then the whole message
             // must be sent
             if (m_hasQueried.Values.All(x => x))
@@ -221,6 +246,11 @@ namespace MLAgents
                     m_hasQueried[k] = false;
                 }
             }
+            totalPerStepTimer.Stop();
+            this.totalTimePerStep = totalPerStepTimer.ElapsedMilliseconds.ToString();
+            networkInstrumentationWriter.WriteLine( GetNumberMessageReceived().ToString() + "," + this.totalTimePerStep + ","
+            + this.totalSerializationTimePerStep + "," + this.totalDeserializationTimePerStep + "," + this.totalExchangeTimePerStep);
+            //networkInstrumentationWriter here
         }
 
         /// <summary>
@@ -229,13 +259,16 @@ namespace MLAgents
         /// </summary>
         void SendBatchedMessageHelper()
         {
+            Stopwatch totalExchangeTimer = Stopwatch.StartNew();
             var input = m_communicator.Exchange(
                 new CommunicatorObjects.UnityOutput
                 {
                     RlOutput = m_currentUnityRLOutput
                 });
+            totalExchangeTimer.Stop();
+            this.totalExchangeTimePerStep = totalExchangeTimer.ElapsedMilliseconds.ToString();
             m_messagesReceived += 1;
-
+            Stopwatch totalDeserializationTimer =  Stopwatch.StartNew();
             foreach (string k in m_currentUnityRLOutput.AgentInfos.Keys)
             {
                 m_currentUnityRLOutput.AgentInfos[k].Value.Clear();
@@ -287,6 +320,8 @@ namespace MLAgents
                     agent.UpdateCustomAction(action.CustomAction);
                 }
             }
+            totalDeserializationTimer.Stop();
+            this.totalDeserializationTimePerStep = totalDeserializationTimer.ElapsedMilliseconds.ToString();
         }
     }
 }

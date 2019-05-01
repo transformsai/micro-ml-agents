@@ -10,7 +10,7 @@ from .communicator_objects import (
     UnityToExternalServicer,
     add_UnityToExternalServicer_to_server,
 )
-from .communicator_objects import UnityMessage, UnityInput, UnityOutput
+from .communicator_objects import UnityMessage, UnityInput, UnityOutput, CommandProto
 from .exception import UnityTimeOutException, UnityWorkerInUseException
 
 logger = logging.getLogger("mlagents.envs")
@@ -38,6 +38,7 @@ class RpcCommunicator(Communicator):
         :int base_port: Baseline port number to connect to Unity environment over. worker_id increments over this.
         :int worker_id: Number to add to communication port (5005) [0]. Used for asynchronous agent scenarios.
         """
+        self.m_messages_received = 0
         self.port = base_port + worker_id
         self.worker_id = worker_id
         self.timeout_wait = timeout_wait
@@ -95,9 +96,12 @@ class RpcCommunicator(Communicator):
         return aca_param
 
     def exchange(self, inputs: UnityInput) -> UnityOutput:
+        self.m_messages_received += 1
         message = UnityMessage()
         message.header.status = 200
         message.unity_input.CopyFrom(inputs)
+        # message.unity_input.rl_input.command = CommandProto.Value('QUIT')
+
         self.unity_to_external.parent_conn.send(message)
         output = self.unity_to_external.parent_conn.recv()
         if output.header.status != 200:
@@ -108,9 +112,13 @@ class RpcCommunicator(Communicator):
         """
         Sends a shutdown signal to the unity environment, and closes the grpc connection.
         """
+        with open('python_comms.log', 'w') as f:
+            f.write(str(self.m_messages_received))
         if self.is_open:
+            print('SENDING SOEM SHIT NOW')
             message_input = UnityMessage()
-            message_input.header.status = 400
+            message_input.header.status = 200
+            message_input.unity_input.rl_input.command = CommandProto.Value('QUIT')
             self.unity_to_external.parent_conn.send(message_input)
             self.unity_to_external.parent_conn.close()
             self.server.stop(False)

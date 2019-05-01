@@ -580,9 +580,29 @@ namespace MLAgents
                 (lastCommunicatorMessageNumber != brainBatcher.GetNumberMessageReceived()))
             {
                 lastCommunicatorMessageNumber = brainBatcher.GetNumberMessageReceived();
+                // logPath = Path.GetFullPath(".") + "/UnitySDK.log";
+                // using (var fs = File.Open(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                // {
+                //     logWriter = new StreamWriter(fs);
+                //     logWriter.WriteLine("Network instrumentation");
+                //     logWriter.WriteLine(brainBatcher.GetNumberMessageReceived().ToString());
+                //     logWriter.WriteLine(" ");
+                //     logWriter.Close();
+                // }
+                print(lastCommunicatorMessageNumber.ToString());
                 if (brainBatcher.GetCommand() ==
                     CommunicatorObjects.CommandProto.Reset)
                 {
+                // logPath = Path.GetFullPath(".") + "/UnitySDK.log";
+                // using (var fs = File.Open(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                // {
+                //     logWriter = new StreamWriter(fs);
+                //     logWriter.WriteLine("RECEIVING RESET NOW");
+                //     logWriter.WriteLine(brainBatcher.GetNumberMessageReceived().ToString());
+                //     logWriter.WriteLine(" ");
+                //     logWriter.Close();
+                // }
+                //     print("RECEIVING A RESET MESSAGE");
                     UpdateResetParameters();
 
                     SetIsInference(!brainBatcher.GetIsTraining());
@@ -596,6 +616,17 @@ namespace MLAgents
 #if UNITY_EDITOR
                     EditorApplication.isPlaying = false;
 #endif
+                // logPath = Path.GetFullPath(".") + "/UnitySDK.log";
+                // using (var fs = File.Open(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                // {
+                //     logWriter = new StreamWriter(fs);
+                //     logWriter.WriteLine("RECEIVING QUIT NOW");
+                //     logWriter.WriteLine(brainBatcher.GetNumberMessageReceived().ToString());
+                //     logWriter.WriteLine(" ");
+                //     logWriter.Close();
+                // }
+                // print("RECEIVING A QUIT MESSAGE");
+
                     Application.Quit();
                     return;
                 }

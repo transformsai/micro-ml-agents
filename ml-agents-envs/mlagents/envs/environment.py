@@ -4,6 +4,7 @@ import logging
 import numpy as np
 import os
 import subprocess
+from time import time
 from typing import *
 
 from mlagents.envs.base_unity_environment import BaseUnityEnvironment
@@ -13,7 +14,7 @@ from .exception import (
     UnityActionException,
     UnityTimeOutException,
 )
-
+import time
 from .communicator_objects import (
     UnityRLInput,
     UnityRLOutput,
@@ -32,6 +33,10 @@ from sys import platform
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("mlagents.envs")
+
+
+def millis():
+    return int(round(time.time() * 1000))
 
 
 class UnityEnvironment(BaseUnityEnvironment):
@@ -74,6 +79,14 @@ class UnityEnvironment(BaseUnityEnvironment):
             None
         )  # The process that is started. If None, no process was started
         self.communicator = self.get_communicator(worker_id, base_port, timeout_wait)
+
+        # Network Instrumentation Stuff
+        self.lines = []
+        self.total_time_per_step = None
+        self.total_serialization_time_per_step = None
+        self.total_deserialization_time_per_step = None
+        self.total_exchange_time_per_step = None
+        self.message_counter = None
 
         # If the environment name is None, a new environment will not be launched
         # and the communicator will directly try to connect to an existing unity environment.
@@ -366,6 +379,7 @@ class UnityEnvironment(BaseUnityEnvironment):
         :param custom_action: Optional instance of a CustomAction protobuf message.
         :return: AllBrainInfo  : A Data structure corresponding to the new state of the environment.
         """
+        total_time_per_step_timer = millis()
         vector_action = {} if vector_action is None else vector_action
         memory = {} if memory is None else memory
         text_action = {} if text_action is None else text_action
@@ -546,19 +560,43 @@ class UnityEnvironment(BaseUnityEnvironment):
                             str(vector_action[brain_name]),
                         )
                     )
-
-            outputs = self.communicator.exchange(
-                self._generate_step_input(
-                    vector_action, memory, text_action, value, custom_action
-                )
+            total_serialization_time_per_step_timer = millis()
+            rl_input = self._generate_step_input(
+                vector_action, memory, text_action, value, custom_action
+            )
+            self.total_serialization_time_per_step = (
+                millis() - total_serialization_time_per_step_timer
+            )
+            total_exchange_time_per_step_timer = millis()
+            outputs = self.communicator.exchange(rl_input)
+            self.total_exchange_time_per_step = (
+                millis() - total_exchange_time_per_step_timer
             )
             if outputs is None:
                 raise KeyboardInterrupt
+            total_deserialization_time_per_step_timer = millis()
             rl_output = outputs.rl_output
             state = self._get_state(rl_output)
             self._global_done = state[1]
             for _b in self._external_brain_names:
                 self._n_agents[_b] = len(state[0][_b].agents)
+            self.total_deserialization_time_per_step = (
+                millis() - total_deserialization_time_per_step_timer
+            )
+            self.total_time_per_step = millis() - total_time_per_step_timer
+            self.message_counter = self.communicator.m_messages_received
+            l = (
+                str(self.message_counter)
+                + ","
+                + str(self.total_time_per_step)
+                + ","
+                + str(self.total_serialization_time_per_step)
+                + ","
+                + str(self.total_deserialization_time_per_step)
+                + ","
+                + str(self.total_exchange_time_per_step) + '\n'
+            )
+            self.lines.append(l)
             return state[0]
         elif not self._loaded:
             raise UnityEnvironmentException("No Unity environment is loaded.")
@@ -576,6 +614,7 @@ class UnityEnvironment(BaseUnityEnvironment):
         """
         Sends a shutdown signal to the unity environment, and closes the socket connection.
         """
+        print('Closing...')
         if self._loaded:
             self._close()
         else:
@@ -584,8 +623,14 @@ class UnityEnvironment(BaseUnityEnvironment):
     def _close(self):
         self._loaded = False
         self.communicator.close()
+        with open("PythonNetworkInstrumentation.csv", "w") as f:
+            f.write(
+                "Message NO, Total Time Per Step, Total Serialization Time, Total Deserialization Time, Total Exchange Time \n"
+            )
+            f.writelines(self.lines)
+        # time.sleep(3)
         if self.proc1 is not None:
-            self.proc1.kill()
+            self.proc1.terminate()
 
     @classmethod
     def _flatten(cls, arr) -> List[float]:
