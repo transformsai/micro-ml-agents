@@ -116,10 +116,10 @@ public class HallwayAgent : Agent
         if (selection == 0)
         {
             orangeBlock.transform.position =
-                new Vector3(0f + Random.Range(-3f, 3f), 2f, blockOffset + Random.Range(-5f, 5f))
+                new Vector3(0f + Random.Range(-8f, 8f), 2f, blockOffset + Random.Range(-8f, 8f))
                 + ground.transform.position;
             redBlock.transform.position =
-                new Vector3(0f, -1000f, blockOffset + Random.Range(-5f, 5f))
+                new Vector3(0f, -1000f, blockOffset + Random.Range(-8f, 8f))
                 + ground.transform.position;
         }
         else
@@ -128,7 +128,7 @@ public class HallwayAgent : Agent
                            new Vector3(0f, -1000f, blockOffset + Random.Range(-5f, 5f))
                            + ground.transform.position;
             redBlock.transform.position =
-                new Vector3(0f, 2f, blockOffset + Random.Range(-5f, 5f))
+                new Vector3(0f, 2f, blockOffset + Random.Range(-9f, 9f))
                 + ground.transform.position;
         }
 
@@ -141,13 +141,13 @@ public class HallwayAgent : Agent
         int goalPos = Random.Range(0, 2);
         if (goalPos == 0)
         {
-            orangeGoal.transform.position = new Vector3(7f, 0.5f, 9f) + area.transform.position;
-            redGoal.transform.position = new Vector3(-7f, 0.5f, 9f) + area.transform.position;
+            orangeGoal.transform.position = new Vector3(7f, 0.5f, 37.5f) + area.transform.position;
+            redGoal.transform.position = new Vector3(-7f, 0.5f, 37.5f) + area.transform.position;
         }
         else
         {
-            redGoal.transform.position = new Vector3(7f, 0.5f, 9f) + area.transform.position;
-            orangeGoal.transform.position = new Vector3(-7f, 0.5f, 9f) + area.transform.position;
+            redGoal.transform.position = new Vector3(7f, 0.5f, 37.5f) + area.transform.position;
+            orangeGoal.transform.position = new Vector3(-7f, 0.5f, 37.5f) + area.transform.position;
         }
     }
 }
