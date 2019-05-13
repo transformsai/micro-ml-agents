@@ -9,7 +9,12 @@ ModelImporter:
     2300000: //RootNode
     3300000: //RootNode
     4300000: Bone
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: rep_Bone
+    second: {fileID: 2100000, guid: b8c075937630af84ba9de031de59de8e, type: 2}
   materials:
     importMaterials: 1
     materialName: 0

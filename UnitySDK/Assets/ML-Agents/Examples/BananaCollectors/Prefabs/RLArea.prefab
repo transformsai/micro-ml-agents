@@ -1382,8 +1382,8 @@ MonoBehaviour:
   turnSpeed: 300
   moveSpeed: 2
   normalMaterial: {fileID: 2100000, guid: 260483cdfc6b14e26823a02f23bd8baa, type: 2}
-  badMaterial: {fileID: 2100000, guid: 882d882b99bce44c6863ec8d3760e9ca, type: 2}
-  goodMaterial: {fileID: 2100000, guid: 80ffa2c5b96364e4b80fbb2e42b0af3d, type: 2}
+  badMaterial: {fileID: 2100000, guid: ba34ec620e02b417280e3d180c870dfb, type: 2}
+  goodMaterial: {fileID: 2100000, guid: b3fed90785fff4a6ea3dfa69f00fe349, type: 2}
   frozenMaterial: {fileID: 2100000, guid: 866f7a84824d141dbbe50dd1893207d9, type: 2}
   myLaser: {fileID: 1282191557182746}
   contribute: 0
@@ -5940,32 +5940,6 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
---- !u!65 &2460646661555443058
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 926289022999910713}
-  m_Material: {fileID: 0}
-  m_IsTrigger: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Size: {x: 10200, y: 2000, z: 100}
-  m_Center: {x: 0, y: -25, z: 5050}
---- !u!65 &7336877271587687792
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 926289022999910713}
-  m_Material: {fileID: 0}
-  m_IsTrigger: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Size: {x: 10200, y: 2000, z: 100}
-  m_Center: {x: 0, y: -25, z: -5050}
 --- !u!65 &2412655516630860756
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -5979,6 +5953,19 @@ BoxCollider:
   serializedVersion: 2
   m_Size: {x: 100, y: 2000, z: 10000}
   m_Center: {x: 5050, y: -25, z: 0}
+--- !u!65 &2460646661555443058
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 926289022999910713}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Size: {x: 10200, y: 2000, z: 100}
+  m_Center: {x: 0, y: -25, z: 5050}
 --- !u!65 &6121912087200361386
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -5992,6 +5979,19 @@ BoxCollider:
   serializedVersion: 2
   m_Size: {x: 100, y: 2000, z: 10000}
   m_Center: {x: -5050, y: -25, z: 0}
+--- !u!65 &7336877271587687792
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 926289022999910713}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Size: {x: 10200, y: 2000, z: 100}
+  m_Center: {x: 0, y: -25, z: -5050}
 --- !u!65 &4648809131671750531
 BoxCollider:
   m_ObjectHideFlags: 0
