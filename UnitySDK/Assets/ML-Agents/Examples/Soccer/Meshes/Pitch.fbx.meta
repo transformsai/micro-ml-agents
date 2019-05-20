@@ -33,6 +33,7 @@ ModelImporter:
     2100006: rep_Clear
     2100008: rep_White
     2100010: rep_goalMaterial
+    2100012: rep_SoccerAgent
     2300000: CenterPitch
     2300002: GlassSideA
     2300004: GlassSideB

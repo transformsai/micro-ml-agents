@@ -6,6 +6,8 @@ ModelImporter:
     100000: //RootNode
     400000: //RootNode
     2100000: lambert1
+    2100002: rep_AgentCube
+    2100004: rep_Agent
     2300000: //RootNode
     3300000: //RootNode
     4300000: AgentCube
@@ -14,6 +16,11 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: lambert1
+    second: {fileID: 2100000, guid: b71c516494f29400d85ef1b4cbc4dee0, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: rep_AgentCube
     second: {fileID: 2100000, guid: b71c516494f29400d85ef1b4cbc4dee0, type: 2}
   materials:
     importMaterials: 1
