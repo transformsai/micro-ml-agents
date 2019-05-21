@@ -20,6 +20,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: rep_Agent
+    second: {fileID: 2100000, guid: b71c516494f29400d85ef1b4cbc4dee0, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: rep_AgentCube
     second: {fileID: 2100000, guid: b71c516494f29400d85ef1b4cbc4dee0, type: 2}
   materials:

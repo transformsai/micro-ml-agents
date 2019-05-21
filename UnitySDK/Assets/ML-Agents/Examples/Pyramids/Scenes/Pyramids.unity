@@ -20,10 +20,10 @@ RenderSettings:
   m_FogDensity: 0.01
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.671, g: 0.671, b: 0.671, a: 1}
+  m_AmbientSkyColor: {r: 0.16764706, g: 0.16764706, b: 0.16764706, a: 1}
   m_AmbientEquatorColor: {r: 0.6965513, g: 0, b: 1, a: 1}
   m_AmbientGroundColor: {r: 1, g: 0.45977026, b: 0, a: 1}
-  m_AmbientIntensity: 1.5
+  m_AmbientIntensity: 2.24
   m_AmbientMode: 3
   m_SubtractiveShadowColor: {r: 0.21065624, g: 0.24018747, b: 0.315, a: 1}
   m_SkyboxMaterial: {fileID: 2100000, guid: 604ce7f19dcd848ce8e8160058a00af2, type: 2}
@@ -51,7 +51,7 @@ LightmapSettings:
     m_IndirectOutputScale: 1
     m_AlbedoBoost: 1
     m_EnvironmentLightingMode: 1
-    m_EnableBakedLightmaps: 1
+    m_EnableBakedLightmaps: 0
     m_EnableRealtimeLightmaps: 1
   m_LightmapEditorSettings:
     serializedVersion: 10
@@ -418,7 +418,7 @@ GameObject:
   - component: {fileID: 762086412}
   - component: {fileID: 762086411}
   m_Layer: 0
-  m_Name: Directional Light
+  m_Name: Directional LightA
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -435,7 +435,7 @@ Light:
   serializedVersion: 8
   m_Type: 1
   m_Color: {r: 1, g: 0.975, b: 0.94, a: 1}
-  m_Intensity: 1.25
+  m_Intensity: 1.6
   m_Range: 10
   m_SpotAngle: 30
   m_CookieSize: 10
@@ -443,7 +443,7 @@ Light:
     m_Type: 2
     m_Resolution: -1
     m_CustomResolution: -1
-    m_Strength: 0.541
+    m_Strength: 0.5
     m_Bias: 0.05
     m_NormalBias: 0.4
     m_NearPlane: 0.2
@@ -469,13 +469,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 762086410}
-  m_LocalRotation: {x: 0.35355338, y: 0.35355338, z: -0.1464466, w: 0.8535535}
+  m_LocalRotation: {x: 0.34682897, y: -0.39044833, z: 0.161729, w: 0.8373192}
   m_LocalPosition: {x: -9.66, y: 32.9, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 45, y: 45, z: 0}
+  m_LocalEulerAnglesHint: {x: 45, y: -50, z: 0}
 --- !u!1001 &774875970
 PrefabInstance:
   m_ObjectHideFlags: 0
