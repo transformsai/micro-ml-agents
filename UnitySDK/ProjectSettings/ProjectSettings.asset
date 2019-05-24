@@ -158,7 +158,7 @@ PlayerSettings:
   androidSupportedAspectRatio: 1
   androidMaxAspectRatio: 2.1
   applicationIdentifier:
-    Android: com.Company.ProductName
+    Android: com.unity3d.mlagents
   buildNumber:
     iOS: 0
   AndroidBundleVersionCode: 1
