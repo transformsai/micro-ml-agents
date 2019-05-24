@@ -57,18 +57,20 @@ inside Unity. In this section, we will use the pre-trained model for the
 8. Select the **InferenceDevice** to use for this model (CPU or GPU). 
    _Note: CPU is faster for the majority of ML-Agents toolkit generated models_
 9. Click the **Play** button and you will see the platforms balance the balls
-   using the pretrained model.
+   using the pre-trained model.
 
-   ![Running a pretrained model](images/running-a-pretrained-model.gif)
+   ![Running a pre-trained model](images/running-a-pretrained-model.gif)
 
 ## Using the Basics Jupyter Notebook
 
 The `notebooks/getting-started.ipynb` [Jupyter notebook](Background-Jupyter.md)
-contains a simple walkthrough of the functionality of the Python API. It can
+contains a simple walk-through of the functionality of the Python API. It can
 also serve as a simple test that your environment is configured correctly.
 Within `Basics`, be sure to set `env_name` to the name of the Unity executable
 if you want to [use an executable](Learning-Environment-Executable.md) or to
 `None` if you want to interact with the current scene in the Unity Editor.
+
+Before building the environment or interacting with it in the editor, select `Ball3DAcademy` in the **Hierarchy** window of the Unity editor and make sure `Control` checkbox is checked under `Ball 3D Academy` component. 
 
 More information and documentation is provided in the
 [Python API](Python-API.md) page.
@@ -230,7 +232,7 @@ has reached the max_steps parameter you set in trainer_config.yaml.) This file
 corresponds to your model's latest checkpoint. You can now embed this trained
 model into your Learning Brain by following the steps below, which is similar to
 the steps described
-[above](#play-an-example-environment-using-pretrained-model).
+[above](#running-a-pre-trained-model).
 
 1. Move your model file into
    `UnitySDK/Assets/ML-Agents/Examples/3DBall/TFModels/`.
@@ -251,6 +253,6 @@ the steps described
 - For a "Hello World" introduction to creating your own Learning Environment,
   check out the [Making a New Learning
   Environment](Learning-Environment-Create-New.md) page.
-- For a series of Youtube video tutorials, checkout the
+- For a series of YouTube video tutorials, checkout the
   [Machine Learning Agents PlayList](https://www.youtube.com/playlist?list=PLX2vGYjWbI0R08eWQkO7nQkGiicHAX7IX)
   page.

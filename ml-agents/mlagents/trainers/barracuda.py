@@ -152,8 +152,6 @@ def sort(model, inputs, memories, verbose):
     assert(len(find_missing_inputs(new_model, inputs_and_memories)) == 0)
     return new_model
 
-
-
 # Trim
 def trim(model, criteria_regexp_string, verbose):
     if hasattr(model, 'layers'):
@@ -194,6 +192,17 @@ def trim(model, criteria_regexp_string, verbose):
         model = trim_model(model, preserve_outputs)
     else:
         print("WARNING: Trim couldn't find any layers to match:", criteria_regexp_string)
+    return model
+
+# Fuse
+def fuse(model, verbose):
+    i = 0
+    while i < len(model) - 1:
+        if model[i].type == model[i+1].type and model[i].type == 255: # Load
+            model[i].tensors += model[i+1].tensors
+            del model[i+1]
+        else:
+            i += 1
     return model
 
 def compress(model):
@@ -284,8 +293,8 @@ class Build:
         self.layers[-1].name = self.scope + ('/' if self.scope else '') + name
         return self.layers[-1].name
 
-    def concat(self, a, b, out=''):
-        self.layers += [Struct(name=out, op='Concat', input=[a, b])]
+    def concat(self, a, b, axis=-1, out=''):
+        self.layers += [Struct(name=out, op='Concat', axis=axis, input=[a, b])]
         return self._patch_last_layer_name_and_return()
     def mad(self, x, kernel, bias, out=''):
         self.layers += [Struct(name=out, op='Dense', input=[x, kernel, bias])]
@@ -305,6 +314,29 @@ class Build:
     def tanh(self, x, out=''):
         self.layers += [Struct(name=out, op='Tanh', input=[x])]
         return self._patch_last_layer_name_and_return()
+    def reduce(self, op, x, axis=-1, out=''):
+        self.layers += [Struct(name=out, op='Reduce'+op, axis=axis, input=[x])]
+        return self._patch_last_layer_name_and_return()
+    def pool(self, op, x, out=''):
+        self.layers += [Struct(name=out, op=op+'Pool', input=[x])]
+        return self._patch_last_layer_name_and_return()
+    def strided_slice(self, x, begin, end, strides, rank, out=''):
+        self.layers += [Struct(name=out, op='StridedSlice', rank=rank, starts=begin, ends=end, slice_strides=strides, input=[x])]
+        return self._patch_last_layer_name_and_return()
+
+def mean(name, input, axis=-1):
+    ''' combines mean operation out of several simpler ops
+    '''
+    nn = Build(name)
+    if np.array_equal(axis, [1,2]):
+        nn.pool('GlobalAvg', input, out=name)
+    elif np.array_equal(axis, [1,2,3]):
+        nn.reduce('Mean',                # over channels
+            nn.pool('GlobalAvg', input), # over height & width
+        out=name) 
+    elif np.array_equal(axis, [3]) or np.array_equal(axis, [-1]) or np.array_equal(axis, 3) or np.array_equal(axis, -1):
+        nn.reduce('Mean', input, out=name)
+    return nn.layers
 
 def rnn(name, input, state, kernel, bias, new_state, number_of_gates = 2):
     ''' - Ht = f(Xt*Wi + Ht_1*Ri + Wbi + Rbi)
@@ -315,7 +347,7 @@ def rnn(name, input, state, kernel, bias, new_state, number_of_gates = 2):
         nn.mad(kernel=kernel, bias=bias,
             x=nn.concat(input, state)),
         out=new_state);
-    return nn.layers;
+    return nn.layers
 
 def gru(name, input, state, kernel_r, kernel_u, kernel_c, bias_r, bias_u, bias_c, new_state, number_of_gates = 2):
     ''' - zt = f(Xt*Wz + Ht_1*Rz        + Wbz + Rbz)
