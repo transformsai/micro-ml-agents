@@ -14,7 +14,7 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: rep_WhitePaintSG
-    second: {fileID: 2100000, guid: d633725e980bb4ac5b0dd309bad3702f, type: 2}
+    second: {fileID: 2100000, guid: b8c075937630af84ba9de031de59de8e, type: 2}
   materials:
     importMaterials: 1
     materialName: 0
