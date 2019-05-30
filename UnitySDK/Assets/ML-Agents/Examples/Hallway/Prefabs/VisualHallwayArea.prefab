@@ -1270,10 +1270,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b446afae240924105b36d07e8d17a608, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  brain: {fileID: 11400000, guid: a36aad05c06144991a0a5e87de40d003, type: 2}
+  brain: {fileID: 11400000, guid: fe56dd72ed38a4c2fb5419aba1e2d5f2, type: 2}
   agentParameters:
     agentCameras:
     - {fileID: 20157183263554114}
+    agentRenderTextures: []
     maxStep: 3000
     resetOnDone: 1
     onDemandDecision: 0

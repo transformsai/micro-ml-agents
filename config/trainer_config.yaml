@@ -219,6 +219,7 @@ VisualHallwayLearning:
     max_steps: 5.0e5
     summary_freq: 1000
     time_horizon: 64
+    use_curiosity: true
 
 VisualPushBlockLearning:
     use_recurrent: true
