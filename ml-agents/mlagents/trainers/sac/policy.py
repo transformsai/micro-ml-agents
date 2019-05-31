@@ -259,7 +259,7 @@ class SACPolicy(Policy):
         to be passed to add experiences
         """
         if len(brain_info.agents) == 0:
-            return ActionInfo([], [], [], None, None)
+            return ActionInfo([], [], [], None, None, self.get_current_step())
 
         run_out = self.evaluate(brain_info)
 
@@ -269,6 +269,7 @@ class SACPolicy(Policy):
             text=None,
             value=run_out.get("value"),
             outputs=run_out,
+            policy_step=self.get_current_step()
         )
 
     def get_last_reward(self):
