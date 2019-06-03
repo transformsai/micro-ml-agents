@@ -11,6 +11,7 @@ from mlagents.trainers.sac.components.extrinsic import ExtrinsicSignal
 from mlagents.trainers.sac.components.entropy import EntropySignal
 from mlagents.trainers.sac.components.bc import BCTrainer
 from mlagents.trainers.sac.pre_training import PreTraining
+from mlagents.envs.tf_utils import TensorFlowVariables
 
 
 logger = logging.getLogger("mlagents.trainers")
@@ -125,6 +126,19 @@ class SACPolicy(Policy):
             "update_value": self.model.update_batch_value,
             "update_entropy": self.model.update_batch_entropy,
         }
+        self.inference_vars = None
+
+    def get_weights(self):
+        with self.graph.as_default():
+            if self.inference_vars is None:
+                self.inference_vars = TensorFlowVariables(list(self.inference_dict.values()), self.sess)
+            return self.inference_vars.get_weights()
+
+    def set_weights(self, weights):
+        with self.graph.as_default():
+            if self.inference_vars is None:
+                self.inference_vars = TensorFlowVariables(list(self.inference_dict.values()), self.sess)
+            self.inference_vars.set_weights(weights)
 
     def evaluate(self, brain_info):
         """
