@@ -259,6 +259,9 @@ class TrainerController(object):
                 trainer.write_tensorboard_text("Hyperparameters", trainer.parameters)
         try:
             self._reset_env(env)
+            import threading
+            thread = threading.Thread(target=self.continually_train, args=())
+            thread.start()
             while (
                 any([t.get_step <= t.get_max_steps for k, t in self.trainers.items()])
                 or not self.train_model
@@ -341,14 +344,26 @@ class TrainerController(object):
                 trainer.process_experiences(
                     step.last_all_brain_info, step.current_all_brain_info
                 )
+
         for brain_name, trainer in self.trainers.items():
             if brain_name in self.trainer_metrics:
                 self.trainer_metrics[brain_name].add_delta_step(delta_time_step)
-            if (
-                trainer.is_ready_update()
-                and self.train_model
-                and trainer.get_step <= trainer.get_max_steps
-            ):
-                # Perform gradient descent with experience buffer
-                trainer.update_policy()
+        #     if (
+        #         trainer.is_ready_update()
+        #         and self.train_model
+        #         and trainer.get_step <= trainer.get_max_steps
+        #     ):
+        #         # Perform gradient descent with experience buffer
+        #         trainer.update_policy()
         return len(steps)
+
+    def continually_train(self):
+        while True:
+            for brain_name, trainer in self.trainers.items():
+                if (
+                    trainer.is_ready_update()
+                    and self.train_model
+                    and trainer.get_step <= trainer.get_max_steps
+                ):
+                    # Perform gradient descent with experience buffer
+                    trainer.update_policy()

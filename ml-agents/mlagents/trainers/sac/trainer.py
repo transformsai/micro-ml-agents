@@ -501,8 +501,8 @@ class SACTrainer(Trainer):
         """
         return (
             len(self.training_buffer.update_buffer["actions"])
-            >= self.trainer_parameters["batch_size"]
-            and self.step % self.train_interval == 0
+            > self.trainer_parameters["batch_size"]
+            # and self.step % self.train_interval == 0
             and self.step >= self.trainer_parameters["buffer_init_steps"]
         )
 
@@ -558,7 +558,7 @@ class SACTrainer(Trainer):
                     inverse_total.append(run_out_curio["inverse_loss"])
                     forward_total.append(run_out_curio["forward_loss"])
 
-        # Truncate update buffer if neccessary. Truncate more than we need to to avoid truncating
+        # Truncate update buffer if necessary. Truncate more than we need to to avoid truncating
         # a large buffer at each update.
         if (
             len(self.training_buffer.update_buffer["actions"])
