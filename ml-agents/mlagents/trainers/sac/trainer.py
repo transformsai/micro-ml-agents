@@ -9,12 +9,31 @@ import numpy as np
 import tensorflow as tf
 
 from mlagents.envs import AllBrainInfo, BrainInfo
-from mlagents.trainers.buffer import Buffer
+from mlagents.trainers.buffer import Buffer, PriorityBuffer
 from mlagents.trainers.sac.policy import SACPolicy
 from mlagents.trainers.trainer import Trainer, UnityTrainerException
-
+from typing import NamedTuple, Dict
+from collections import defaultdict
 
 logger = logging.getLogger("mlagents.trainers")
+
+
+class AgentLastInfo:
+    def __init__(self):
+        self.last_brain_info = None
+        self.last_take_action_outputs = None
+
+
+class AgentLastInfos:
+    def __init__(self):
+        self.agent_last_infos = {}
+
+    def get(self, agentid):
+        if self.agent_last_infos.get(agentid):
+            return self.agent_last_infos[agentid]
+        else:
+            self.agent_last_infos[agentid] = AgentLastInfo()
+            return self.agent_last_infos[agentid]
 
 
 class SACTrainer(Trainer):
@@ -122,10 +141,13 @@ class SACTrainer(Trainer):
             stats["Losses/BC Loss"] = []
         self.stats = stats
 
-        self.training_buffer = Buffer()
+        self.training_buffer = PriorityBuffer(
+            max_size=self.trainer_parameters["buffer_size"]
+        )
 
         self._reward_buffer = deque(maxlen=reward_buff_cap)
         self.episode_steps = {}
+        self.agent_last_infos = AgentLastInfos()
 
     def __str__(self):
         return """Hyperparameters for the SAC Trainer of brain {0}: \n{1}""".format(
@@ -243,7 +265,7 @@ class SACTrainer(Trainer):
         prev_text_actions = []
         action_masks = []
         for agent_id in next_info.agents:
-            agent_brain_info = self.training_buffer[agent_id].last_brain_info
+            agent_brain_info = self.agent_last_infos.get(agent_id).last_brain_info
             if agent_brain_info is None:
                 agent_brain_info = next_info
             agent_index = agent_brain_info.agents.index(agent_id)
@@ -314,10 +336,8 @@ class SACTrainer(Trainer):
         next_info = next_all_info[self.brain_name]
 
         for agent_id in curr_info.agents:
-            self.training_buffer[agent_id].last_brain_info = curr_info
-            self.training_buffer[
-                agent_id
-            ].last_take_action_outputs = take_action_outputs
+            self.agent_last_infos.get(agent_id).last_brain_info = curr_info
+            self.agent_last_infos.get(agent_id).last_take_action_outputs = take_action_outputs
 
         if curr_info.agents != next_info.agents:
             curr_to_use = self.construct_curr_info(next_info)
@@ -329,74 +349,49 @@ class SACTrainer(Trainer):
             tmp_rewards_dict[name] = signal.evaluate(curr_to_use, next_info)
 
         for agent_id in next_info.agents:
-            stored_info = self.training_buffer[agent_id].last_brain_info
-            stored_take_action_outputs = self.training_buffer[
-                agent_id
-            ].last_take_action_outputs
+            stored_info = self.agent_last_infos.get(agent_id).last_brain_info
+            stored_take_action_outputs = self.agent_last_infos.get(agent_id).last_take_action_outputs
             if stored_info is not None:
                 idx = stored_info.agents.index(agent_id)
                 next_idx = next_info.agents.index(agent_id)
                 assert idx == next_idx
                 if not stored_info.local_done[idx]:
+                    new_exp = {}
                     for i, _ in enumerate(stored_info.visual_observations):
-                        self.training_buffer[agent_id]["visual_obs%d" % i].append(
-                            stored_info.visual_observations[i][idx]
-                        )
-                        self.training_buffer[agent_id]["next_visual_obs%d" % i].append(
-                            next_info.visual_observations[i][next_idx]
-                        )
+                        new_exp["visual_obs%d" % i] = stored_info.visual_observations[i][idx]
+                        new_exp["next_visual_obs%d" % i] = next_info.visual_observations[i][next_idx]
                     if self.policy.use_vec_obs:
-                        self.training_buffer[agent_id]["vector_obs"].append(
-                            stored_info.vector_observations[idx]
-                        )
-                        self.training_buffer[agent_id]["next_vector_in"].append(
-                            next_info.vector_observations[next_idx]
-                        )
+                        new_exp["vector_obs"] = stored_info.vector_observations[idx]
+                        new_exp["next_vector_in"] = next_info.vector_observations[next_idx]
                     if self.policy.use_recurrent:
                         if stored_info.memories.shape[1] == 0:
                             stored_info.memories = np.zeros(
                                 (len(stored_info.agents), self.policy.m_size)
                             )
-                        self.training_buffer[agent_id]["memory"].append(
-                            stored_info.memories[idx]
-                        )
+                        new_exp["memory"] = stored_info.memories[idx]
                     actions = stored_take_action_outputs["action"]
                     if self.policy.use_continuous_act:
                         pass
-                        # actions_pre = stored_take_action_outputs["pre_action"]
-                        # self.training_buffer[agent_id]["actions_pre"].append(
-                        #     actions_pre[idx]
-                        # )
-                        # epsilons = stored_take_action_outputs["random_normal_epsilon"]
-                        # self.training_buffer[agent_id]["random_normal_epsilon"].append(
-                        #     epsilons[idx]
-                        # )
                     else:
-                        self.training_buffer[agent_id]["action_mask"].append(
-                            stored_info.action_masks[idx]
-                        )
+                        new_exp["action_mask"] = stored_info.action_masks[idx]
                     a_dist = stored_take_action_outputs["log_probs"]
                     # value is a dictionary from name of reward to value estimate of the value head
                     value = stored_take_action_outputs["value"]
-                    self.training_buffer[agent_id]["actions"].append(actions[idx])
-                    self.training_buffer[agent_id]["prev_action"].append(
-                        stored_info.previous_vector_actions[idx]
-                    )
-                    self.training_buffer[agent_id]["masks"].append(1.0)
-                    self.training_buffer[agent_id]["done"].append(
-                        next_info.local_done[idx]
-                    )
+                    new_exp["actions"] = actions[idx]
+                    new_exp["prev_action"] = stored_info.previous_vector_actions[idx]
+                    new_exp["masks"] = 1.0
+                    new_exp["done"] = next_info.local_done[idx]
 
                     for name, reward in tmp_rewards_dict.items():
                         # 0 because we use the scaled reward to train the agent
-                        self.training_buffer[agent_id][
+                        new_exp[
                             "{}_rewards".format(name)
-                        ].append(tmp_rewards_dict[name][0][next_idx])
-                        self.training_buffer[agent_id][
+                        ] = tmp_rewards_dict[name][0][next_idx]
+                        new_exp[
                             "{}_value_estimates".format(name)
-                        ].append(value)
+                        ] = value
 
-                    self.training_buffer[agent_id]["action_probs"].append(a_dist[idx])
+                    new_exp["action_probs"] = a_dist[idx]
 
                     for idx, (name, rewards) in enumerate(
                         self.collected_rewards.items()
@@ -411,6 +406,9 @@ class SACTrainer(Trainer):
                         rewards[agent_id] += tmp_rewards_dict[name][use_unscaled][
                             next_idx
                         ]
+                    self.training_buffer.add([new_exp], [
+                        abs(new_exp["extrinsic_rewards"])
+                    ])
 
                 if not next_info.local_done[next_idx]:
                     if agent_id not in self.episode_steps:
@@ -427,49 +425,20 @@ class SACTrainer(Trainer):
         """
         info = new_info[self.brain_name]
         for l in range(len(info.agents)):
-            agent_actions = self.training_buffer[info.agents[l]]["actions"]
+            # agent_actions = self.training_buffer[info.agents[l]]["actions"]
             if (
                 info.local_done[l]
-                or len(agent_actions) > self.trainer_parameters["time_horizon"]
-            ) and len(agent_actions) > 0:
+                # or len(agent_actions) > self.trainer_parameters["time_horizon"]
+            ): #and len(agent_actions) > 0:
                 agent_id = info.agents[l]
-                if info.max_reached[l]:
-                    bootstrapping_info = self.training_buffer[agent_id].last_brain_info
-                    idx = bootstrapping_info.agents.index(agent_id)
-                else:
-                    bootstrapping_info = info
-                    idx = l
-                # value_next = self.policy.get_value_estimates(bootstrapping_info, idx)
-                # if info.local_done[l] and not info.max_reached[l]:
-                #     value_next = 0.0
-                # tmp_advantages = []
-                # tmp_returns = []
-                # for idx, name in enumerate(self.policy.reward_signals.keys()):
-                #     bootstrap_value = value_next
 
-                #     local_rewards = self.training_buffer[agent_id][
-                #             '{}_rewards'.format(name)].get_batch()
-                #     local_value_estimates = self.training_buffer[agent_id][
-                #             '{}_value_estimates'.format(name)].get_batch()
-                # local_return = get_discounted_returns(
-                #     rewards=local_rewards,
-                #     gamma=self.gamma_parameters[name],
-                #     lambd=self.trainer_parameters['lambd'])
-                # # This is later use as target for the different value estimates
-                # self.training_buffer[agent_id]['{}_returns'.format(name)].set(local_return)
-                # # self.training_buffer[agent_id]['{}_advantage'.format(name)].set(local_advantage)
-                # tmp_returns.append(local_return)
+                # self.training_buffer.append_update_buffer(
+                #     agent_id,
+                #     batch_size=None,
+                #     training_length=self.policy.sequence_length,
+                # )
 
-                # global_returns = list(np.mean(np.array(tmp_returns), axis=0))
-                # self.training_buffer[agent_id]['discounted_returns'].set(global_returns)
-
-                self.training_buffer.append_update_buffer(
-                    agent_id,
-                    batch_size=None,
-                    training_length=self.policy.sequence_length,
-                )
-
-                self.training_buffer[agent_id].reset_agent()
+                # self.training_buffer[agent_id].reset_agent()
                 if info.local_done[l]:
                     self.stats["Environment/Episode Length"].append(
                         self.episode_steps.get(agent_id, 0)
@@ -487,7 +456,7 @@ class SACTrainer(Trainer):
         A signal that the Episode has ended. The buffer must be reset.
         Get only called when the academy resets.
         """
-        self.training_buffer.reset_local_buffers()
+        # self.training_buffer.reset_local_buffers()
         for agent_id in self.episode_steps:
             self.episode_steps[agent_id] = 0
         for rewards in self.collected_rewards.values():
@@ -500,8 +469,8 @@ class SACTrainer(Trainer):
         :return: A boolean corresponding to whether or not update_model() can be run
         """
         return (
-            len(self.training_buffer.update_buffer["actions"])
-            >= self.trainer_parameters["batch_size"]
+            len(self.training_buffer)
+            > self.trainer_parameters["batch_size"]
             and self.step % self.train_interval == 0
             and self.step >= self.trainer_parameters["buffer_init_steps"]
         )
@@ -512,7 +481,7 @@ class SACTrainer(Trainer):
         The reward signal generators must be updated in this method at their own pace.
         """
         self.trainer_metrics.start_policy_update_timer(
-            number_experiences=len(self.training_buffer.update_buffer["actions"]),
+            number_experiences=len(self.training_buffer),
             mean_return=float(np.mean(self.cumulative_returns_since_policy_update)),
         )
         n_sequences = max(
@@ -533,12 +502,11 @@ class SACTrainer(Trainer):
         # )
         num_epoch = self.trainer_parameters["num_epoch"]
         for _ in range(num_epoch):
-            buffer = self.training_buffer.update_buffer
+            buffer = self.training_buffer
             if (
-                len(self.training_buffer.update_buffer["actions"])
-                >= self.trainer_parameters["batch_size"]
+                len(buffer) >= self.trainer_parameters["batch_size"]
             ):
-                sampled_minibatch = buffer.sample_mini_batch(
+                sampled_minibatch = buffer.get_batch(
                     self.trainer_parameters["batch_size"]
                 )
                 run_out = self.policy.update(
@@ -560,13 +528,13 @@ class SACTrainer(Trainer):
 
         # Truncate update buffer if neccessary. Truncate more than we need to to avoid truncating
         # a large buffer at each update.
-        if (
-            len(self.training_buffer.update_buffer["actions"])
-            > self.trainer_parameters["buffer_size"]
-        ):
-            self.training_buffer.truncate_update_buffer(
-                int(self.trainer_parameters["buffer_size"] * 0.8)
-            )
+        # if (
+        #     len(self.training_buffer.update_buffer["actions"])
+        #     > self.trainer_parameters["buffer_size"]
+        # ):
+        #     self.training_buffer.truncate_update_buffer(
+        #         int(self.trainer_parameters["buffer_size"] * 0.8)
+        #     )
 
         self.stats["Losses/Value Loss"].append(np.mean(value_total))
         self.stats["Losses/Policy Loss"].append(np.mean(policy_total))

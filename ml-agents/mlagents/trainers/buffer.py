@@ -103,7 +103,7 @@ class Buffer(dict):
                             )
                         tmp_list = []
                         for end in range(len(self) - batch_size + 1, len(self) + 1):
-                            tmp_list += [np.array(self[end - training_length : end])]
+                            tmp_list += [np.array(self[end - training_length: end])]
                         return np.array(tmp_list)
                     if sequential:
                         # The sequences will not have overlapping elements (this involves padding)
@@ -112,12 +112,12 @@ class Buffer(dict):
                         if batch_size is None:
                             # retrieve the maximum number of elements
                             batch_size = len(self) // training_length + 1 * (
-                                leftover != 0
+                                    leftover != 0
                             )
                         # The maximum number of sequences taken from a list of length len(self) without overlapping
                         # with padding is equal to batch_size
                         if batch_size > (
-                            len(self) // training_length + 1 * (leftover != 0)
+                                len(self) // training_length + 1 * (leftover != 0)
                         ):
                             raise BufferException(
                                 "The batch size and training length requested for get_batch where"
@@ -127,9 +127,9 @@ class Buffer(dict):
                         padding = np.array(self[-1]) * self.padding_value
                         # The padding is made with zeros and its shape is given by the shape of the last element
                         for end in range(
-                            len(self), len(self) % training_length, -training_length
+                                len(self), len(self) % training_length, -training_length
                         )[:batch_size]:
-                            tmp_list += [np.array(self[end - training_length : end])]
+                            tmp_list += [np.array(self[end - training_length: end])]
                         if (leftover != 0) and (len(tmp_list) < batch_size):
                             tmp_list += [
                                 np.array(
@@ -217,7 +217,7 @@ class Buffer(dict):
             for key in self:
                 mini_batch[key] = np.array(self[key][start:end])
             return mini_batch
-        
+
         # SAC HAC
         def sample_mini_batch(self, batch_size):
             """
@@ -237,7 +237,6 @@ class Buffer(dict):
             for key in mini_batch_lists:
                 mini_batch[key] = np.array(mini_batch_lists[key])
             return mini_batch
-
 
     def __init__(self):
         self.update_buffer = self.AgentBuffer()
@@ -261,7 +260,7 @@ class Buffer(dict):
         Resets the update buffer
         """
         self.update_buffer.reset_agent()
-    
+
     # SAC HAC
     def truncate_update_buffer(self, max_length):
         """ 
@@ -272,8 +271,9 @@ class Buffer(dict):
         """
         current_length = len(self.update_buffer["actions"])
         if current_length > max_length:
+            self.update_buffer.shuffle()
             for _key in self.update_buffer.keys():
-                self.update_buffer[_key] = self.update_buffer[_key][current_length-max_length:]
+                self.update_buffer[_key] = self.update_buffer[_key][0:max_length]
 
     def reset_local_buffers(self):
         """
@@ -284,7 +284,7 @@ class Buffer(dict):
             self[k].reset_agent()
 
     def append_update_buffer(
-        self, agent_id, key_list=None, batch_size=None, training_length=None
+            self, agent_id, key_list=None, batch_size=None, training_length=None
     ):
         """
         Appends the buffer of an agent to the update buffer.
@@ -309,7 +309,7 @@ class Buffer(dict):
             )
 
     def append_all_agent_batch_to_update_buffer(
-        self, key_list=None, batch_size=None, training_length=None
+            self, key_list=None, batch_size=None, training_length=None
     ):
         """
         Appends the buffer of all agents to the update buffer.
@@ -319,3 +319,101 @@ class Buffer(dict):
         """
         for agent_id in self.keys():
             self.append_update_buffer(agent_id, key_list, batch_size, training_length)
+
+
+class PriorityBuffer:
+    def __init__(self, max_size: int, alpha: float = 0.2):
+        self.max_size = max_size
+        self.alpha = alpha
+        self.cur_size = 0
+        self.buffer = {}
+        self.priorities = np.zeros(self.max_size)
+        self.init_length = 0
+        self.eviction_strategy = 'rand'
+
+    def __len__(self):
+        return self.cur_size
+
+    def remove_n(self, n):
+        """Get n items for removal."""
+        assert self.init_length + n <= self.cur_size
+
+        if self.eviction_strategy == 'rand':
+            # random removal
+            idxs = random.sample(range(self.init_length, self.cur_size), n)
+        elif self.eviction_strategy == 'fifo':
+            # overwrite elements in cyclical fashion
+            idxs = [
+                self.init_length +
+                (self.remove_idx + i) % (self.max_size - self.init_length)
+                for i in range(n)]
+            self.remove_idx = idxs[-1] + 1 - self.init_length
+        elif self.eviction_strategy == 'rank':
+            # remove lowest-priority indices
+            idxs = np.argpartition(self.priorities, n)[:n]
+
+        return idxs
+
+    def add(self, episodes, priorities, new_idxs=None):
+        """Add episodes to buffer."""
+        if new_idxs is None:
+            idx = 0
+            new_idxs = []
+            while self.cur_size < self.max_size and idx < len(episodes):
+                self.buffer[self.cur_size] = episodes[idx]
+                new_idxs.append(self.cur_size)
+                self.cur_size += 1
+                idx += 1
+
+            if idx < len(episodes):
+                remove_idxs = self.remove_n(len(episodes) - idx)
+                for remove_idx in remove_idxs:
+                    self.buffer[remove_idx] = episodes[idx]
+                    new_idxs.append(remove_idx)
+                    idx += 1
+        else:
+            assert len(new_idxs) == len(episodes)
+            for new_idx, ep in zip(new_idxs, episodes):
+                self.buffer[new_idx] = ep
+
+        self.priorities[new_idxs] = priorities
+        self.priorities[0:self.init_length] = np.max(
+            self.priorities[self.init_length:])
+
+        assert len(self.buffer) == self.cur_size
+        return new_idxs
+
+    def sampling_distribution(self):
+        p = self.priorities[:self.cur_size]
+        p = np.exp(self.alpha * (p - np.max(p)))
+        norm = np.sum(p)
+        if norm > 0:
+            uniform = 0.0
+            p = p / norm * (1 - uniform) + 1.0 / self.cur_size * uniform
+        else:
+            p = np.ones(self.cur_size) / self.cur_size
+        return p
+
+    def get_batch(self, n):
+        """Get batch of episodes to train on."""
+        p = self.sampling_distribution()
+        idxs = np.random.choice(self.cur_size, size=int(n), replace=False, p=p)
+        self.last_batch = idxs
+        batch_dicts = [self.buffer[idx] for idx in idxs]
+        batch_out = {}
+        for entry in batch_dicts:
+            for key in entry:
+                if key in batch_out:
+                    batch_out[key].append(entry[key])
+                else:
+                    batch_out[key] = [entry[key]]
+
+        for key in batch_out:
+            batch_out[key] = np.array(batch_out[key])
+        return batch_out
+
+    def update_last_batch(self, delta):
+        """Update last batch idxs with new priority."""
+        self.priorities[self.last_batch] = np.abs(delta)
+        self.priorities[0:self.init_length] = np.max(
+            self.priorities[self.init_length:])
