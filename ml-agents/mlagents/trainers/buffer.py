@@ -410,7 +410,7 @@ class PriorityBuffer:
 
         for key in batch_out:
             batch_out[key] = np.array(batch_out[key])
-        return batch_out
+        return batch_out, self.priorities[idxs]
 
     def update_last_batch(self, delta):
         """Update last batch idxs with new priority."""
