@@ -331,12 +331,11 @@ class SACTrainer(Trainer):
                             rewards[agent_id] += np.array(next_info.rewards)[next_idx]
                         else:
                             use_unscaled = 0
-                            rewards[agent_id] += tmp_rewards_dict[name][use_unscaled][
-                                next_idx
-                            ]
-                    self.training_buffer.add([new_exp], [
-                        abs(new_exp["extrinsic_rewards"])
-                    ])
+                        rewards[agent_id] += tmp_rewards_dict[name][use_unscaled][
+                            next_idx
+                        ]
+                    q1_losses = self.policy.calculate_loss([new_exp])
+                    self.training_buffer.add([new_exp], q1_losses)
 
                 if not next_info.local_done[next_idx]:
                     if agent_id not in self.episode_steps:
@@ -439,7 +438,7 @@ class SACTrainer(Trainer):
             if (
                 len(buffer) >= self.trainer_parameters["batch_size"]
             ):
-                sampled_minibatch = buffer.get_batch(
+                sampled_minibatch, batch_priorities = buffer.get_batch(
                     self.trainer_parameters["batch_size"]
                 )
                 # Get rewards for each reward
@@ -448,6 +447,7 @@ class SACTrainer(Trainer):
                         "{}_rewards".format(name)
                     ] = signal.evaluate_batch(sampled_minibatch)[0]
                 # print(sampled_minibatch)
+                buffer.update_last_batch(batch_priorities * 0.95)
                 run_out = self.policy.update(
                     sampled_minibatch,
                     n_sequences,

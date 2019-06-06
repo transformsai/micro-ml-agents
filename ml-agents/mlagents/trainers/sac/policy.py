@@ -77,6 +77,7 @@ class SACPolicy(Policy):
             "value": self.model.value_heads,
             "entropy": self.model.entropy,
             "learning_rate": self.model.learning_rate,
+            "value_loss": self.model.value_loss,
         }
         # if self.use_continuous_act:
         #     self.inference_dict["pre_action"] = self.model.output_pre
@@ -101,6 +102,78 @@ class SACPolicy(Policy):
             "update_value": self.model.update_batch_value,
             "update_entropy": self.model.update_batch_entropy,
         }
+
+    def calculate_loss(self, experiences_in):
+        experiences = {}
+        for entry in experiences_in:
+            for key in entry:
+                if key in experiences:
+                    experiences[key].append(entry[key])
+                else:
+                    experiences[key] = [entry[key]]
+
+        for key in experiences:
+            experiences[key] = np.array(experiences[key])
+
+        feed_dict = {
+            self.model.batch_size: 1,
+            self.model.sequence_length: self.sequence_length,
+            self.model.mask_input: experiences["masks"].flatten(),
+        }
+        for i, name in enumerate(self.reward_signals.keys()):
+            feed_dict[self.model.rewards_holders[i]] = experiences[
+                "{}_rewards".format(name)
+            ].flatten()
+
+        if self.use_continuous_act:
+            feed_dict[self.model.action_holder] = experiences["actions"].reshape(
+                [-1, self.model.act_size[0]]
+            )
+        else:
+            feed_dict[self.model.action_holder] = experiences["actions"].reshape(
+                [-1, len(self.model.act_size)]
+            )
+            if self.use_recurrent:
+                feed_dict[self.model.prev_action] = experiences["prev_action"].reshape(
+                    [-1, len(self.model.act_size)]
+                )
+            feed_dict[self.model.action_masks] = experiences["action_mask"].reshape(
+                [-1, sum(self.brain.vector_action_space_size)]
+            )
+        if self.use_vec_obs:
+            feed_dict[self.model.vector_in] = experiences["vector_obs"].reshape(
+                [-1, self.vec_obs_size]
+            )
+            feed_dict[self.model.next_vector_in] = experiences["next_vector_in"].reshape(
+                [-1, self.vec_obs_size]
+            )
+        if self.model.vis_obs_size > 0:
+            for i, _ in enumerate(self.model.visual_in):
+                _obs = experiences["visual_obs%d" % i]
+                if self.sequence_length > 1 and self.use_recurrent:
+                    (_batch, _seq, _w, _h, _c) = _obs.shape
+                    feed_dict[self.model.visual_in[i]] = _obs.reshape([-1, _w, _h, _c])
+                else:
+                    feed_dict[self.model.visual_in[i]] = _obs
+
+            for i, _ in enumerate(self.model.next_visual_in):
+                _obs = experiences["next_visual_obs%d" % i]
+                if self.sequence_length > 1 and self.use_recurrent:
+                    (_batch, _seq, _w, _h, _c) = _obs.shape
+                    feed_dict[self.model.next_visual_in[i]] = _obs.reshape(
+                        [-1, _w, _h, _c]
+                    )
+                else:
+                    feed_dict[self.model.next_visual_in[i]] = _obs
+        if self.use_recurrent:
+            mem_in = experiences["memory"][:, 0, :]
+            feed_dict[self.model.memory_in] = mem_in
+        feed_dict[self.model.dones_holder] = experiences["done"].flatten()
+        out_dict = {
+            "q1_loss": self.model.q1_loss_per_element
+        }
+        run_out = self._execute_model(feed_dict, out_dict)
+        return run_out["q1_loss"]
 
     def evaluate(self, brain_info):
         """

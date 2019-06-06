@@ -725,9 +725,10 @@ class SACModel(LearningModel):
                 q2_stream = q2_streams[name]
             # q_backup = tf.Print(q_backup, [self.policy_network.external_action_in, _expanded_rewards, q1_streams[name]], message="Qbackup", summarize=10)
 
-            _q1_loss = 0.5 * tf.reduce_mean(
-                tf.to_float(self.mask) * tf.squared_difference(q_backup, q1_stream)
-            )
+
+            _q1_loss_per_element = 0.5 * tf.to_float(self.mask) * tf.squared_difference(q_backup, q1_stream)
+            self.q1_loss_per_element = _q1_loss_per_element
+            _q1_loss = tf.reduce_mean(_q1_loss_per_element)
 
             _q2_loss = 0.5 * tf.reduce_mean(
                 tf.to_float(self.mask) * tf.squared_difference(q_backup, q2_stream)
