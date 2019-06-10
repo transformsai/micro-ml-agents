@@ -505,10 +505,11 @@ class SACTrainer(Trainer):
             if (
                 len(buffer) >= self.trainer_parameters["batch_size"]
             ):
-                sampled_minibatch, batch_priorities = buffer.get_batch(
+                sampled_minibatch, batch_priorities, batch_is_weights = buffer.get_batch(
                     self.trainer_parameters["batch_size"]
                 )
                 buffer.update_last_batch(batch_priorities * 0.95)
+                sampled_minibatch["is_weights"] = batch_is_weights
                 run_out = self.policy.update(
                     sampled_minibatch,
                     n_sequences,

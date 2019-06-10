@@ -193,6 +193,7 @@ class SACPolicy(Policy):
             mem_in = experiences["memory"][:, 0, :]
             feed_dict[self.model.memory_in] = mem_in
         feed_dict[self.model.dones_holder] = experiences["done"].flatten()
+        feed_dict[self.model.is_weights] = np.ones(len(experiences_in), dtype=np.float64)
         out_dict = {
             "q1_loss": self.model.q1_loss_per_element
         }
@@ -290,6 +291,8 @@ class SACPolicy(Policy):
             mem_in = mini_batch["memory"][:, 0, :]
             feed_dict[self.model.memory_in] = mem_in
         feed_dict[self.model.dones_holder] = mini_batch["done"].flatten()
+        feed_dict[self.model.is_weights] = mini_batch["is_weights"]
+
         run_out = self._execute_model(feed_dict, self.update_dict)
         # for key in feed_dict.keys():
         #     print(np.isnan(feed_dict[key]).any())
