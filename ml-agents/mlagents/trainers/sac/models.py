@@ -671,6 +671,14 @@ class SACModel(LearningModel):
                     self.policy_network.q2_pheads[name],
                 )
 
+        self.is_weights = tf.placeholder(
+            shape=[None],
+            dtype=tf.float32,
+            name="is_weights"
+        )
+
+        self.rewards_holders = []
+        for i in range(len(q1_streams)):
             rewards_holder = tf.placeholder(
                 shape=[None], dtype=tf.float32, name="{}_rewards".format(name)
             )
@@ -726,13 +734,13 @@ class SACModel(LearningModel):
             # q_backup = tf.Print(q_backup, [self.policy_network.external_action_in, _expanded_rewards, q1_streams[name]], message="Qbackup", summarize=10)
 
 
-            _q1_loss_per_element = 0.5 * tf.to_float(self.mask) * tf.squared_difference(q_backup, q1_stream)
+            _q1_loss_per_element = 0.5 * tf.to_float(self.mask) * tf.squared_difference(q_backup, q1_stream) * self.is_weights
             self.q1_loss_per_element = _q1_loss_per_element
             _q1_loss = tf.reduce_mean(_q1_loss_per_element)
 
             _q2_loss = 0.5 * tf.reduce_mean(
                 tf.to_float(self.mask) * tf.squared_difference(q_backup, q2_stream)
-            )
+            ) * self.is_weights
 
             q1_losses.append(_q1_loss)
             q2_losses.append(_q2_loss)
