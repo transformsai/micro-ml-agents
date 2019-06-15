@@ -122,6 +122,10 @@ RUN apt-get update && apt-get -y upgrade
 # xvfb is used to do CPU based rendering of Unity
 RUN apt-get install -y xvfb
 
+# upgrade bash and vim
+RUN apt-get install bash
+RUN apt-get install vim
+
 # setup google-cloud-sdk, which is used to copy files to gcs after the training is finished
 RUN apt-get update && apt-get install --yes --no-install-recommends \
     ca-certificates \
