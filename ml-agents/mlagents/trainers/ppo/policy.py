@@ -1,5 +1,6 @@
 import logging
 import numpy as np
+import tensorflow as tf
 
 from mlagents.trainers.ppo.models import PPOModel
 from mlagents.trainers.policy import Policy
@@ -74,10 +75,7 @@ class PPOPolicy(Policy):
         :param brain_info: BrainInfo object containing inputs.
         :return: Outputs from network as defined by self.inference_dict.
         """
-        feed_dict = {
-            self.model.batch_size: len(brain_info.vector_observations),
-            self.model.sequence_length: 1,
-        }
+        feed_dict = {self.model.sequence_length: 1}
         epsilon = None
         if self.use_recurrent:
             if not self.use_continuous_act:
@@ -94,80 +92,39 @@ class PPOPolicy(Policy):
                 size=(len(brain_info.vector_observations), self.model.act_size[0])
             )
             feed_dict[self.model.epsilon] = epsilon
+            feed_dict[self.model.is_update] = False
+            # dummy input (just to make tf.where() happy)
+            feed_dict[self.model.features["actions_pre"]] = np.zeros(
+                    (len(brain_info.vector_observations), self.model.act_size[0])
+                )
         feed_dict = self._fill_eval_dict(feed_dict, brain_info)
         run_out = self._execute_model(feed_dict, self.inference_dict)
         if self.use_continuous_act:
             run_out["random_normal_epsilon"] = epsilon
         return run_out
 
-    def update(self, mini_batch, num_sequences):
+    def update(self, update_buffer, batch_size, buffer_size, num_epoch):
         """
         Updates model using buffer.
         :param num_sequences: Number of trajectories in batch.
         :param mini_batch: Experience batch.
         :return: Output from update process.
         """
-        feed_dict = {
-            self.model.batch_size: num_sequences,
-            self.model.sequence_length: self.sequence_length,
-            self.model.mask_input: mini_batch["masks"].flatten(),
-            self.model.returns_holder: mini_batch["discounted_returns"].flatten(),
-            self.model.old_value: mini_batch["value_estimates"].flatten(),
-            self.model.advantage: mini_batch["advantages"].reshape([-1, 1]),
-            self.model.all_old_log_probs: mini_batch["action_probs"].reshape(
-                [-1, sum(self.model.act_size)]
-            ),
-        }
-        if self.use_continuous_act:
-            feed_dict[self.model.output_pre] = mini_batch["actions_pre"].reshape(
-                [-1, self.model.act_size[0]]
-            )
-            feed_dict[self.model.epsilon] = mini_batch["random_normal_epsilon"].reshape(
-                [-1, self.model.act_size[0]]
-            )
-        else:
-            feed_dict[self.model.action_holder] = mini_batch["actions"].reshape(
-                [-1, len(self.model.act_size)]
-            )
-            if self.use_recurrent:
-                feed_dict[self.model.prev_action] = mini_batch["prev_action"].reshape(
-                    [-1, len(self.model.act_size)]
-                )
-            feed_dict[self.model.action_masks] = mini_batch["action_mask"].reshape(
-                [-1, sum(self.brain.vector_action_space_size)]
-            )
-        if self.use_vec_obs:
-            feed_dict[self.model.vector_in] = mini_batch["vector_obs"].reshape(
-                [-1, self.vec_obs_size]
-            )
-            if self.use_curiosity:
-                feed_dict[self.model.next_vector_in] = mini_batch[
-                    "next_vector_in"
-                ].reshape([-1, self.vec_obs_size])
-        if self.model.vis_obs_size > 0:
-            for i, _ in enumerate(self.model.visual_in):
-                _obs = mini_batch["visual_obs%d" % i]
-                if self.sequence_length > 1 and self.use_recurrent:
-                    (_batch, _seq, _w, _h, _c) = _obs.shape
-                    feed_dict[self.model.visual_in[i]] = _obs.reshape([-1, _w, _h, _c])
-                else:
-                    feed_dict[self.model.visual_in[i]] = _obs
-            if self.use_curiosity:
-                for i, _ in enumerate(self.model.visual_in):
-                    _obs = mini_batch["next_visual_obs%d" % i]
-                    if self.sequence_length > 1 and self.use_recurrent:
-                        (_batch, _seq, _w, _h, _c) = _obs.shape
-                        feed_dict[self.model.next_visual_in[i]] = _obs.reshape(
-                            [-1, _w, _h, _c]
-                        )
-                    else:
-                        feed_dict[self.model.next_visual_in[i]] = _obs
-        if self.use_recurrent:
-            mem_in = mini_batch["memory"][:, 0, :]
-            feed_dict[self.model.memory_in] = mem_in
+        all_run_out = []
         self.has_updated = True
-        run_out = self._execute_model(feed_dict, self.update_dict)
-        return run_out
+        input_dict = {self.model.placeholders[key]: update_buffer[key] \
+            for key in self.model.placeholders}
+        input_dict.update({self.model.num_epoch: num_epoch,
+            self.model.batch_size: batch_size, self.model.buffer_size: buffer_size})
+        self.sess.run(self.model.ds_iter.initializer, feed_dict=input_dict)
+        while True:
+            try:
+                network_out = self.sess.run(list(self.update_dict.values()))
+                run_out = dict(zip(list(self.update_dict.keys()), network_out))
+                all_run_out.append(run_out)
+            except tf.errors.OutOfRangeError:
+                break
+        return all_run_out
 
     def get_intrinsic_rewards(self, curr_info, next_info):
         """
@@ -180,10 +137,7 @@ class PPOPolicy(Policy):
             if len(curr_info.agents) == 0:
                 return []
 
-            feed_dict = {
-                self.model.batch_size: len(next_info.vector_observations),
-                self.model.sequence_length: 1,
-            }
+            feed_dict = {self.model.sequence_length: 1}
             if self.use_continuous_act:
                 feed_dict[
                     self.model.selected_actions
@@ -216,7 +170,7 @@ class PPOPolicy(Policy):
         :param idx: Index in BrainInfo of agent.
         :return: Value estimate.
         """
-        feed_dict = {self.model.batch_size: 1, self.model.sequence_length: 1}
+        feed_dict = {self.model.sequence_length: 1}
         for i in range(len(brain_info.visual_observations)):
             feed_dict[self.model.visual_in[i]] = [
                 brain_info.visual_observations[i][idx]

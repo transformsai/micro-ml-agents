@@ -16,12 +16,6 @@ class LearningModel(object):
         self.vector_in = None
         self.global_step, self.increment_step = self.create_global_steps()
         self.visual_in = []
-        self.batch_size = tf.placeholder(shape=None, dtype=tf.int32, name="batch_size")
-        self.sequence_length = tf.placeholder(
-            shape=None, dtype=tf.int32, name="sequence_length"
-        )
-        self.mask_input = tf.placeholder(shape=[None], dtype=tf.float32, name="masks")
-        self.mask = tf.cast(self.mask_input, tf.int32)
         self.use_recurrent = use_recurrent
         if self.use_recurrent:
             self.m_size = m_size
@@ -33,6 +27,8 @@ class LearningModel(object):
             brain.vector_observation_space_size * brain.num_stacked_vector_observations
         )
         self.vis_obs_size = brain.number_visual_observations
+        self.placeholders = {}
+        self.create_basic_placeholders()
         tf.Variable(
             int(brain.vector_action_space_type == "continuous"),
             name="is_continuous_control",
@@ -97,16 +93,66 @@ class LearningModel(object):
         )
         return visual_in
 
-    def create_vector_input(self, name="vector_observation"):
+    def create_basic_placeholders(self):
+        self.placeholders["sequence_length"] = tf.placeholder(
+            shape=None, dtype=tf.int32, name="sequence_length"
+        )
+        self.placeholders["masks"] = tf.placeholder(shape=[None], dtype=tf.float32, name="masks")
+
+        if self.brain.vector_action_space_type == "continuous":
+            self.placeholders["action_probs"] = tf.placeholder(
+                shape=[None, self.act_size[0]], dtype=tf.float32, name="old_probabilities"
+            )
+            self.placeholders["epsilon"] = tf.placeholder(
+                shape=[None, self.act_size[0]], dtype=tf.float32, name="epsilon"
+            )
+            self.placeholders["actions_pre"] = tf.placeholder(
+                shape=[None, self.act_size[0]], dtype=tf.float32, name="actions_pre"
+            )
+        else:
+            self.placeholders["action_probs"] = tf.placeholder(
+                shape=[None, sum(self.act_size)], dtype=tf.float32, name="old_probabilities"
+            )
+            self.placeholders["actions"] = tf.placeholder(
+                shape=[None, len(self.act_size)], dtype=tf.int32, name="action_holder"
+            )
+            self.placeholders["action_mask"] = tf.placeholder(
+                shape=[None, sum(self.act_size)], dtype=tf.float32, name="action_masks"
+            )
+            if self.use_recurrent:
+                self.placeholders["prev_action"] = tf.placeholder(
+                    shape=[None, len(self.act_size)], dtype=tf.int32, name="prev_action"
+                )
+        if self.vec_obs_size > 0:
+            self.placeholders["vector_obs"] = tf.placeholder(
+                shape=[None, self.vec_obs_size], dtype=tf.float32, name="vector_obs"
+            )
+
+        if self.vis_obs_size > 0:
+            for i in range(self.brain.number_visual_observations):
+                self.placeholders["visual_obs" + str(i)] = self.create_visual_input(
+                    self.brain.camera_resolutions[i], name="visual_obs" + str(i)
+                )
+
+        if self.use_recurrent:
+            self.placeholders["memory"] = tf.placeholder(
+                shape=[None, self.m_size], dtype=tf.float32, name="recurrent_in"
+            )
+
+    def init_model(self):
+        self.sequence_length = self.features["sequence_length"]
+        self.mask_input = self.features["masks"]
+        self.mask = tf.cast(self.mask_input, tf.int32)
+
+    def create_vector_input(self, name="vector_obs"):
         """
         Creates ops for vector observation input.
         :param name: Name of the placeholder op.
         :param vec_obs_size: Size of stacked vector observation.
         :return:
         """
-        self.vector_in = tf.placeholder(
-            shape=[None, self.vec_obs_size], dtype=tf.float32, name=name
-        )
+        self.vector_in = self.features[name]
+
         if self.normalize:
             self.running_mean = tf.get_variable(
                 "running_mean",
@@ -275,11 +321,9 @@ class LearningModel(object):
 
         self.visual_in = []
         for i in range(brain.number_visual_observations):
-            visual_input = self.create_visual_input(
-                brain.camera_resolutions[i], name="visual_observation_" + str(i)
-            )
-            self.visual_in.append(visual_input)
-        vector_observation_input = self.create_vector_input()
+            self.visual_in.append(self.features["visual_obs" + str(i)])
+        if brain.vector_observation_space_size > 0:
+            vector_observation_input = self.create_vector_input()
 
         final_hiddens = []
         for i in range(num_streams):
@@ -355,9 +399,7 @@ class LearningModel(object):
         hidden_streams = self.create_observation_streams(2, h_size, num_layers)
 
         if self.use_recurrent:
-            self.memory_in = tf.placeholder(
-                shape=[None, self.m_size], dtype=tf.float32, name="recurrent_in"
-            )
+            self.memory_in = self.features["memory"]
             _half_point = int(self.m_size / 2)
             hidden_policy, memory_policy_out = self.create_recurrent_encoder(
                 hidden_streams[0],
@@ -395,11 +437,15 @@ class LearningModel(object):
 
         sigma_sq = tf.exp(log_sigma_sq)
 
-        self.epsilon = tf.placeholder(
-            shape=[None, self.act_size[0]], dtype=tf.float32, name="epsilon"
-        )
+        self.epsilon = self.features["epsilon"]
         # Clip and scale output to ensure actions are always within [-1, 1] range.
-        self.output_pre = mu + tf.sqrt(sigma_sq) * self.epsilon
+        self.is_update = self.features["is_update"]
+        self.output_pre = tf.where(
+            self.is_update,
+            tf.identity(self.features["actions_pre"]),
+            mu + tf.sqrt(sigma_sq) * self.epsilon
+        )
+
         output_post = tf.clip_by_value(self.output_pre, -3, 3) / 3
         self.output = tf.identity(output_post, name="action")
         self.selected_actions = tf.stop_gradient(output_post)
@@ -418,9 +464,7 @@ class LearningModel(object):
         value = tf.layers.dense(hidden_value, 1, activation=None)
         self.value = tf.identity(value, name="value_estimate")
 
-        self.all_old_log_probs = tf.placeholder(
-            shape=[None, self.act_size[0]], dtype=tf.float32, name="old_probabilities"
-        )
+        self.all_old_log_probs = self.features["action_probs"]
 
         # We keep these tensors the same name, but use new nodes to keep code parallelism with discrete control.
         self.log_probs = tf.reduce_sum(
@@ -440,9 +484,7 @@ class LearningModel(object):
         hidden = hidden_streams[0]
 
         if self.use_recurrent:
-            self.prev_action = tf.placeholder(
-                shape=[None, len(self.act_size)], dtype=tf.int32, name="prev_action"
-            )
+            self.prev_action = self.features["prev_action"]
             prev_action_oh = tf.concat(
                 [
                     tf.one_hot(self.prev_action[:, i], self.act_size[i])
@@ -452,9 +494,7 @@ class LearningModel(object):
             )
             hidden = tf.concat([hidden, prev_action_oh], axis=1)
 
-            self.memory_in = tf.placeholder(
-                shape=[None, self.m_size], dtype=tf.float32, name="recurrent_in"
-            )
+            self.memory_in = self.features["memory"]
             hidden, memory_out = self.create_recurrent_encoder(
                 hidden, self.memory_in, self.sequence_length
             )
@@ -478,9 +518,7 @@ class LearningModel(object):
             [branch for branch in policy_branches], axis=1, name="action_probs"
         )
 
-        self.action_masks = tf.placeholder(
-            shape=[None, sum(self.act_size)], dtype=tf.float32, name="action_masks"
-        )
+        self.action_masks = self.features["action_mask"]
         output, normalized_logits = self.create_discrete_action_masking_layer(
             self.all_log_probs, self.action_masks, self.act_size
         )
@@ -491,9 +529,7 @@ class LearningModel(object):
         value = tf.layers.dense(hidden, 1, activation=None)
         self.value = tf.identity(value, name="value_estimate")
 
-        self.action_holder = tf.placeholder(
-            shape=[None, len(policy_branches)], dtype=tf.int32, name="action_holder"
-        )
+        self.action_holder = self.features["actions"]
         self.action_oh = tf.concat(
             [
                 tf.one_hot(self.action_holder[:, i], self.act_size[i])
@@ -503,9 +539,7 @@ class LearningModel(object):
         )
         self.selected_actions = tf.stop_gradient(self.action_oh)
 
-        self.all_old_log_probs = tf.placeholder(
-            shape=[None, sum(self.act_size)], dtype=tf.float32, name="old_probabilities"
-        )
+        self.all_old_log_probs = self.features["action_probs"]
         _, old_normalized_logits = self.create_discrete_action_masking_layer(
             self.all_old_log_probs, self.action_masks, self.act_size
         )
