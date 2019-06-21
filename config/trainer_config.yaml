@@ -32,6 +32,16 @@ BananaLearning:
     num_epoch: 1
     train_interval: 1
 
+BananaLearningPlayer:
+    normalize: false
+    batch_size: 256
+    buffer_init_steps: 1000
+    buffer_size: 50000
+    max_steps: 1.0e5
+    init_entcoef: 0.05
+    num_epoch: 1
+    train_interval: 1
+
 VisualBananaLearning:
     beta: 1.0e-2
     gamma: 0.99
