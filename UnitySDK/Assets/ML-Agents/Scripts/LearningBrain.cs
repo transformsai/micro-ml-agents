@@ -32,30 +32,30 @@ namespace MLAgents
     [CreateAssetMenu(fileName = "NewLearningBrain", menuName = "ML-Agents/Learning Brain")]
     public class LearningBrain : Brain
     {
-        private TensorGenerator _tensorGenerator;
-        private TensorApplier _tensorApplier;
+        protected TensorGenerator _tensorGenerator;
+        protected TensorApplier _tensorApplier;
 #if ENABLE_TENSORFLOW
         public TextAsset model;
-        private ModelParamLoader _modelParamLoader;
-        private TFSharpInferenceEngine _engine;
+        protected ModelParamLoader _modelParamLoader;
+        protected TFSharpInferenceEngine _engine;
 #elif ENABLE_BARRACUDA 
         public NNModel model;
-        private Model _barracudaModel;
-        private IWorker _engine;
-        private bool _verbose = false;
+        protected Model _barracudaModel;
+        protected IWorker _engine;
+        protected bool _verbose = false;
         
-        private BarracudaModelParamLoader _modelParamLoader;
-        private string[] _outputNames;
+        protected BarracudaModelParamLoader _modelParamLoader;
+        protected string[] _outputNames;
 #endif
         [Tooltip("Inference execution device. CPU is the fastest option for most of ML Agents models. " +
                  "(This field is not applicable for training).")]
         public InferenceDevice inferenceDevice = InferenceDevice.CPU;
         
-        private IReadOnlyList<Tensor> _inferenceInputs;
-        private IReadOnlyList<Tensor> _inferenceOutputs;
+        protected IReadOnlyList<Tensor> _inferenceInputs;
+        protected IReadOnlyList<Tensor> _inferenceOutputs;
 
         [NonSerialized]
-        private bool _isControlled;
+        protected bool _isControlled;
 
         /// <summary>
         /// When Called, the brain will be controlled externally. It will not use the

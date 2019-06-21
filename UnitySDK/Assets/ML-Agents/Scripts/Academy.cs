@@ -280,7 +280,7 @@ namespace MLAgents
 
             var exposedBrains = broadcastHub.broadcastingBrains.Where(x => x != null).ToList();;
             var controlledBrains = broadcastHub.broadcastingBrains.Where(
-                x => x != null && x is LearningBrain && broadcastHub.IsControlled(x));
+                x => x != null && (x is LearningBrain || x is LearningPlayerBrain) && broadcastHub.IsControlled(x));
             foreach (LearningBrain brain in controlledBrains)
             {
                 brain.SetToControlledExternally();

@@ -139,7 +139,7 @@ namespace MLAgents
                 }
                 // This is the Rectangle for the control checkbox
                 EditorGUI.BeginChangeCheck();
-                if (brain is LearningBrain)
+                if (brain is LearningBrain || brain is LearningPlayerBrain)
                 {
                     var isTraining = _hub.IsControlled(brain);
                     isTraining = EditorGUI.Toggle(controlRect, isTraining);
