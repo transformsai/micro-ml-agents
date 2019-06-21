@@ -153,7 +153,7 @@ namespace MLAgents
                 return;
             }
             else{
-                Time.timeScale = 100;
+                Time.timeScale = 15;
             }
             
             if (_isControlled )
