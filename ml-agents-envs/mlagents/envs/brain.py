@@ -101,7 +101,7 @@ class BrainInfo:
         return s
 
     @staticmethod
-    def from_agent_proto(agent_info_list, brain_params):
+    def from_agent_proto(worker_id: int, agent_info_list, brain_params):
         """
         Converts list of agent infos to BrainInfo.
         """
@@ -157,13 +157,16 @@ class BrainInfo:
             vector_obs = np.nan_to_num(
                 np.array([x.stacked_vector_observation for x in agent_info_list])
             )
+        agents = [
+            str(worker_id) + "-" + str(x.id) for x in agent_info_list
+        ]
         brain_info = BrainInfo(
             visual_observation=vis_obs,
             vector_observation=vector_obs,
             text_observations=[x.text_observation for x in agent_info_list],
             memory=memory,
             reward=[x.reward if not np.isnan(x.reward) else 0 for x in agent_info_list],
-            agents=[x.id for x in agent_info_list],
+            agents=agents,
             local_done=[x.done for x in agent_info_list],
             vector_action=np.array([x.stored_vector_actions for x in agent_info_list]),
             text_action=[list(x.stored_text_actions) for x in agent_info_list],
