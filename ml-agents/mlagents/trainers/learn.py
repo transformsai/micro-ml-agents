@@ -18,6 +18,7 @@ from mlagents.trainers import MetaCurriculumError, MetaCurriculum
 from mlagents.envs import UnityEnvironment
 from mlagents.envs.exception import UnityEnvironmentException
 from mlagents.envs.base_unity_environment import BaseUnityEnvironment
+from mlagents.envs.ECSEnvironment import ECSEnvironment
 from mlagents.envs.subprocess_environment import SubprocessUnityEnvironment
 
 
@@ -183,14 +184,15 @@ def create_environment_factory(
         env_seed = seed
         if not env_seed:
             env_seed = seed_pool[worker_id % len(seed_pool)]
-        return UnityEnvironment(
-            file_name=env_path,
-            worker_id=worker_id,
-            seed=env_seed,
-            docker_training=docker_training,
-            no_graphics=no_graphics,
-            base_port=start_port
-        )
+        return ECSEnvironment()
+        # return ECSEnvironment(
+        #     file_name=env_path,
+        #     worker_id=worker_id,
+        #     seed=env_seed,
+        #     docker_training=docker_training,
+        #     no_graphics=no_graphics,
+        #     base_port=start_port
+        # )
     return create_unity_environment
 
 
