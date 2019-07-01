@@ -331,9 +331,9 @@ class SACTrainer(Trainer):
                             rewards[agent_id] += np.array(next_info.rewards)[next_idx]
                         else:
                             use_unscaled = 0
-                        rewards[agent_id] += tmp_rewards_dict[name][use_unscaled][
-                            next_idx
-                        ]
+                            rewards[agent_id] += tmp_rewards_dict[name][use_unscaled][
+                                next_idx
+                            ]
                     self.training_buffer.add([new_exp], [
                         abs(new_exp["extrinsic_rewards"])
                     ])
