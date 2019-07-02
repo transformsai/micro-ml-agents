@@ -121,7 +121,7 @@ class SACPolicy(Policy):
             self.model.mask_input: experiences["masks"].flatten(),
         }
         for i, name in enumerate(self.reward_signals.keys()):
-            feed_dict[self.model.rewards_holders[i]] = experiences[
+            feed_dict[self.model.rewards_holders[name]] = experiences[
                 "{}_rewards".format(name)
             ].flatten()
 
@@ -166,6 +166,7 @@ class SACPolicy(Policy):
                 else:
                     feed_dict[self.model.next_visual_in[i]] = _obs
         if self.use_recurrent:
+            print(experiences['memory'])
             mem_in = experiences["memory"][:, 0, :]
             feed_dict[self.model.memory_in] = mem_in
         feed_dict[self.model.dones_holder] = experiences["done"].flatten()
@@ -185,6 +186,7 @@ class SACPolicy(Policy):
         feed_dict = {
             self.model.batch_size: len(brain_info.vector_observations),
             self.model.sequence_length: 1,
+            self.model.mask_input: [1.0],
         }
         # epsilon = None
         if self.use_recurrent:

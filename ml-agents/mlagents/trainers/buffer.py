@@ -413,7 +413,7 @@ class PriorityBuffer:
 
         total_priority = np.sum(self.priorities)
         beta = 0.6
-        is_weights = np.power(self.cur_size * (self.priorities[idxs] / total_priority), beta)
+        is_weights = np.power(1/(self.cur_size * (self.priorities[idxs] / total_priority)), beta)
         is_weights /= is_weights.max()
         return batch_out, self.priorities[idxs], is_weights
 

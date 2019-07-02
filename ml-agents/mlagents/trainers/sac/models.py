@@ -677,8 +677,8 @@ class SACModel(LearningModel):
             name="is_weights"
         )
 
-        self.rewards_holders = []
-        for i in range(len(q1_streams)):
+        self.rewards_holders = {}
+        for name in stream_names:
             rewards_holder = tf.placeholder(
                 shape=[None], dtype=tf.float32, name="{}_rewards".format(name)
             )
@@ -739,8 +739,8 @@ class SACModel(LearningModel):
             _q1_loss = tf.reduce_mean(_q1_loss_per_element)
 
             _q2_loss = 0.5 * tf.reduce_mean(
-                tf.to_float(self.mask) * tf.squared_difference(q_backup, q2_stream)
-            ) * self.is_weights
+                tf.to_float(self.mask) * tf.squared_difference(q_backup, q2_stream) * self.is_weights
+            )
 
             q1_losses.append(_q1_loss)
             q2_losses.append(_q2_loss)
