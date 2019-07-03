@@ -322,14 +322,14 @@ class Buffer(dict):
 
 
 class PriorityBuffer:
-    def __init__(self, max_size: int, alpha: float = 0.2):
+    def __init__(self, max_size: int, alpha: float = 0.3):
         self.max_size = max_size
         self.alpha = alpha
         self.cur_size = 0
         self.buffer = {}
         self.priorities = np.zeros(self.max_size)
         self.init_length = 0
-        self.eviction_strategy = 'rand'
+        self.eviction_strategy = 'rank'
 
     def __len__(self):
         return self.cur_size
@@ -377,6 +377,7 @@ class PriorityBuffer:
                 self.buffer[new_idx] = ep
 
         self.priorities[new_idxs] = priorities
+        # print(priorities, episodes[0]["environment_rewards"])
         self.priorities[0:self.init_length] = np.max(
             self.priorities[self.init_length:])
 
@@ -385,6 +386,7 @@ class PriorityBuffer:
 
     def sampling_distribution(self):
         p = self.priorities[:self.cur_size]
+        # print(np.max(p))
         p = np.exp(self.alpha * (p - np.max(p)))
         norm = np.sum(p)
         if norm > 0:
@@ -412,9 +414,10 @@ class PriorityBuffer:
             batch_out[key] = np.array(batch_out[key])
 
         total_priority = np.sum(self.priorities)
-        beta = 0.6
+        beta = 1.0
         is_weights = np.power(1/(self.cur_size * (self.priorities[idxs] / total_priority)), beta)
         is_weights /= is_weights.max()
+        #print(batch_out['environment_rewards'], self.priorities[idxs])
         return batch_out, self.priorities[idxs], is_weights
 
     def update_last_batch(self, delta):

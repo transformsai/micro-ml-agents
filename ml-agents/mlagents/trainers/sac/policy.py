@@ -166,7 +166,6 @@ class SACPolicy(Policy):
                 else:
                     feed_dict[self.model.next_visual_in[i]] = _obs
         if self.use_recurrent:
-            print(experiences['memory'])
             mem_in = experiences["memory"][:, 0, :]
             feed_dict[self.model.memory_in] = mem_in
         feed_dict[self.model.dones_holder] = experiences["done"].flatten()

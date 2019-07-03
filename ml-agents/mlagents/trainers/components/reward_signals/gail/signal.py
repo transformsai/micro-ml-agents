@@ -3,6 +3,7 @@ import numpy as np
 from mlagents.trainers.components.reward_signals import RewardSignal
 from mlagents.trainers.trainer import UnityTrainerException
 from mlagents.trainers.policy import Policy
+from mlagents.trainers.buffer import Buffer
 from .model import GAILModel
 from mlagents.trainers.demo_loader import demo_to_buffer
 
@@ -40,7 +41,10 @@ class GAILRewardSignal(RewardSignal):
         self.print_debug = print_debug
 
         self.model = GAILModel(policy.model, encoding_size, learning_rate, 64)
-        _, self.demonstration_buffer = demo_to_buffer(demo_path, policy.sequence_length)
+        if demo_path is "_":
+            self.demonstration_buffer = Buffer()
+        else:
+            _, self.demonstration_buffer = demo_to_buffer(demo_path, policy.sequence_length)
         self.has_updated = False
 
     def evaluate_batch(self, mini_batch):

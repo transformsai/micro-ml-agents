@@ -20,6 +20,7 @@ class BrainInfo:
         local_done=None,
         vector_action=None,
         text_action=None,
+        is_demonstration=None,
         max_reached=None,
         action_mask=None,
         custom_observations=None,
@@ -37,6 +38,7 @@ class BrainInfo:
         self.agents = agents
         self.previous_vector_actions = vector_action
         self.previous_text_actions = text_action
+        self.previous_is_demonstration = is_demonstration
         self.action_masks = action_mask
         self.custom_observations = custom_observations
 
@@ -167,6 +169,7 @@ class BrainInfo:
             local_done=[x.done for x in agent_info_list],
             vector_action=np.array([x.stored_vector_actions for x in agent_info_list]),
             text_action=[list(x.stored_text_actions) for x in agent_info_list],
+            is_demonstration=[x.is_demonstration for x in agent_info_list],
             max_reached=[x.max_step_reached for x in agent_info_list],
             custom_observations=[x.custom_observation for x in agent_info_list],
             action_mask=mask_actions,

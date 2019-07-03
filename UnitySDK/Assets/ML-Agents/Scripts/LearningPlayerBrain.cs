@@ -95,36 +95,42 @@ namespace MLAgents
         /// Contains the mapping from input to discrete actions
         public DiscretePlayerAction[] discretePlayerActions;
 
- 
+        [SerializeField]
+        [Tooltip("Whether or not we should allow the player to control it.")]
+        public bool isControllable = false;
+
         protected override void DecideAction()
         {
             bool wasPlayerControlled = false;
-
                 if (brainParameters.vectorActionSpaceType == SpaceType.continuous)
                 {
                     foreach (Agent agent in agentInfos.Keys)
                     {
-                        var action = new float[brainParameters.vectorActionSize[0]];
-                        foreach (KeyContinuousPlayerAction cha in keyContinuousPlayerActions)
+                        if(agent.isControllable)
                         {
-                            if (Input.GetKey(cha.key))
+                            var action = new float[brainParameters.vectorActionSize[0]];
+                            foreach (KeyContinuousPlayerAction cha in keyContinuousPlayerActions)
                             {
-                                action[cha.index] = cha.value;
-                                wasPlayerControlled = true;
+                                if (Input.GetKey(cha.key))
+                                {
+                                    action[cha.index] = cha.value;
+                                    wasPlayerControlled = true;
+                                }
                             }
-                        }
-                        foreach (AxisContinuousPlayerAction axisAction in axisContinuousPlayerActions)
-                        {
-                            var axisValue = Input.GetAxis(axisAction.axis);
-                            axisValue *= axisAction.scale;
-                            if (Mathf.Abs(axisValue) > 0.0001)
+                            foreach (AxisContinuousPlayerAction axisAction in axisContinuousPlayerActions)
                             {
-                                action[axisAction.index] = axisValue;
-                                wasPlayerControlled = true;
+                                var axisValue = Input.GetAxis(axisAction.axis);
+                                axisValue *= axisAction.scale;
+                                if (Mathf.Abs(axisValue) > 0.0001)
+                                {
+                                    action[axisAction.index] = axisValue;
+                                    wasPlayerControlled = true;
+                                }
                             }
-                        }
-                        if (wasPlayerControlled){
-                            agent.UpdateVectorAction(action); 
+                            if (wasPlayerControlled){
+                                agent.UpdateVectorAction(action); 
+                                agent.SetIsDemonstration(true);
+                            }
                         }
                     } 
                 }
@@ -132,20 +138,26 @@ namespace MLAgents
                 {
                     foreach (Agent agent in agentInfos.Keys)
                     {
-                        var action = new float[brainParameters.vectorActionSize.Length];
-                        foreach (DiscretePlayerAction dha in discretePlayerActions)
+                        if(agent.isControllable)
                         {
-                            if (Input.GetKey(dha.key))
+                            var action = new float[brainParameters.vectorActionSize.Length];
+                            foreach (DiscretePlayerAction dha in discretePlayerActions)
                             {
-                                action[dha.branchIndex] = (float) dha.value;
-                                wasPlayerControlled = true;
+                                if (Input.GetKey(dha.key))
+                                {
+                                    action[dha.branchIndex] = (float) dha.value;
+                                    wasPlayerControlled = true;
+                                }
                             }
-                        }
-                        if (wasPlayerControlled){
-                            agent.UpdateVectorAction(action);
+                            if (wasPlayerControlled){
+                                agent.UpdateVectorAction(action);
+                                agent.SetIsDemonstration(true);
+                            }
                         }
                     }
                 }
+
+            // Adjust timescale based on keypress
             if(Input.anyKey)
             {
                 Time.timeScale = 0.3f;
@@ -155,7 +167,7 @@ namespace MLAgents
             else{
                 Time.timeScale = 15;
             }
-            
+        
             if (_isControlled )
             {        
                 agentInfos.Clear();

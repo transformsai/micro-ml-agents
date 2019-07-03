@@ -27,19 +27,20 @@ namespace MLAgents.CommunicatorObjects {
             "CjltbGFnZW50cy9lbnZzL2NvbW11bmljYXRvcl9vYmplY3RzL2FnZW50X2lu",
             "Zm9fcHJvdG8ucHJvdG8SFGNvbW11bmljYXRvcl9vYmplY3RzGjttbGFnZW50",
             "cy9lbnZzL2NvbW11bmljYXRvcl9vYmplY3RzL2N1c3RvbV9vYnNlcnZhdGlv",
-            "bi5wcm90byLXAgoOQWdlbnRJbmZvUHJvdG8SIgoac3RhY2tlZF92ZWN0b3Jf",
+            "bi5wcm90byLxAgoOQWdlbnRJbmZvUHJvdG8SIgoac3RhY2tlZF92ZWN0b3Jf",
             "b2JzZXJ2YXRpb24YASADKAISGwoTdmlzdWFsX29ic2VydmF0aW9ucxgCIAMo",
             "DBIYChB0ZXh0X29ic2VydmF0aW9uGAMgASgJEh0KFXN0b3JlZF92ZWN0b3Jf",
             "YWN0aW9ucxgEIAMoAhIbChNzdG9yZWRfdGV4dF9hY3Rpb25zGAUgASgJEhAK",
             "CG1lbW9yaWVzGAYgAygCEg4KBnJld2FyZBgHIAEoAhIMCgRkb25lGAggASgI",
-            "EhgKEG1heF9zdGVwX3JlYWNoZWQYCSABKAgSCgoCaWQYCiABKAUSEwoLYWN0",
-            "aW9uX21hc2sYCyADKAgSQwoSY3VzdG9tX29ic2VydmF0aW9uGAwgASgLMicu",
-            "Y29tbXVuaWNhdG9yX29iamVjdHMuQ3VzdG9tT2JzZXJ2YXRpb25CH6oCHE1M",
-            "QWdlbnRzLkNvbW11bmljYXRvck9iamVjdHNiBnByb3RvMw=="));
+            "EhgKEG1heF9zdGVwX3JlYWNoZWQYCSABKAgSGAoQaXNfZGVtb25zdHJhdGlv",
+            "bhgKIAEoCBIKCgJpZBgLIAEoBRITCgthY3Rpb25fbWFzaxgMIAMoCBJDChJj",
+            "dXN0b21fb2JzZXJ2YXRpb24YDSABKAsyJy5jb21tdW5pY2F0b3Jfb2JqZWN0",
+            "cy5DdXN0b21PYnNlcnZhdGlvbkIfqgIcTUxBZ2VudHMuQ29tbXVuaWNhdG9y",
+            "T2JqZWN0c2IGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::MLAgents.CommunicatorObjects.CustomObservationReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::MLAgents.CommunicatorObjects.AgentInfoProto), global::MLAgents.CommunicatorObjects.AgentInfoProto.Parser, new[]{ "StackedVectorObservation", "VisualObservations", "TextObservation", "StoredVectorActions", "StoredTextActions", "Memories", "Reward", "Done", "MaxStepReached", "Id", "ActionMask", "CustomObservation" }, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::MLAgents.CommunicatorObjects.AgentInfoProto), global::MLAgents.CommunicatorObjects.AgentInfoProto.Parser, new[]{ "StackedVectorObservation", "VisualObservations", "TextObservation", "StoredVectorActions", "StoredTextActions", "Memories", "Reward", "Done", "MaxStepReached", "IsDemonstration", "Id", "ActionMask", "CustomObservation" }, null, null, null)
           }));
     }
     #endregion
@@ -80,6 +81,7 @@ namespace MLAgents.CommunicatorObjects {
       reward_ = other.reward_;
       done_ = other.done_;
       maxStepReached_ = other.maxStepReached_;
+      isDemonstration_ = other.isDemonstration_;
       id_ = other.id_;
       actionMask_ = other.actionMask_.Clone();
       customObservation_ = other.customObservation_ != null ? other.customObservation_.Clone() : null;
@@ -186,8 +188,19 @@ namespace MLAgents.CommunicatorObjects {
       }
     }
 
+    /// <summary>Field number for the "is_demonstration" field.</summary>
+    public const int IsDemonstrationFieldNumber = 10;
+    private bool isDemonstration_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    public bool IsDemonstration {
+      get { return isDemonstration_; }
+      set {
+        isDemonstration_ = value;
+      }
+    }
+
     /// <summary>Field number for the "id" field.</summary>
-    public const int IdFieldNumber = 10;
+    public const int IdFieldNumber = 11;
     private int id_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public int Id {
@@ -198,9 +211,9 @@ namespace MLAgents.CommunicatorObjects {
     }
 
     /// <summary>Field number for the "action_mask" field.</summary>
-    public const int ActionMaskFieldNumber = 11;
+    public const int ActionMaskFieldNumber = 12;
     private static readonly pb::FieldCodec<bool> _repeated_actionMask_codec
-        = pb::FieldCodec.ForBool(90);
+        = pb::FieldCodec.ForBool(98);
     private readonly pbc::RepeatedField<bool> actionMask_ = new pbc::RepeatedField<bool>();
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public pbc::RepeatedField<bool> ActionMask {
@@ -208,7 +221,7 @@ namespace MLAgents.CommunicatorObjects {
     }
 
     /// <summary>Field number for the "custom_observation" field.</summary>
-    public const int CustomObservationFieldNumber = 12;
+    public const int CustomObservationFieldNumber = 13;
     private global::MLAgents.CommunicatorObjects.CustomObservation customObservation_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public global::MLAgents.CommunicatorObjects.CustomObservation CustomObservation {
@@ -240,6 +253,7 @@ namespace MLAgents.CommunicatorObjects {
       if (!pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.Equals(Reward, other.Reward)) return false;
       if (Done != other.Done) return false;
       if (MaxStepReached != other.MaxStepReached) return false;
+      if (IsDemonstration != other.IsDemonstration) return false;
       if (Id != other.Id) return false;
       if(!actionMask_.Equals(other.actionMask_)) return false;
       if (!object.Equals(CustomObservation, other.CustomObservation)) return false;
@@ -258,6 +272,7 @@ namespace MLAgents.CommunicatorObjects {
       if (Reward != 0F) hash ^= pbc::ProtobufEqualityComparers.BitwiseSingleEqualityComparer.GetHashCode(Reward);
       if (Done != false) hash ^= Done.GetHashCode();
       if (MaxStepReached != false) hash ^= MaxStepReached.GetHashCode();
+      if (IsDemonstration != false) hash ^= IsDemonstration.GetHashCode();
       if (Id != 0) hash ^= Id.GetHashCode();
       hash ^= actionMask_.GetHashCode();
       if (customObservation_ != null) hash ^= CustomObservation.GetHashCode();
@@ -298,13 +313,17 @@ namespace MLAgents.CommunicatorObjects {
         output.WriteRawTag(72);
         output.WriteBool(MaxStepReached);
       }
-      if (Id != 0) {
+      if (IsDemonstration != false) {
         output.WriteRawTag(80);
+        output.WriteBool(IsDemonstration);
+      }
+      if (Id != 0) {
+        output.WriteRawTag(88);
         output.WriteInt32(Id);
       }
       actionMask_.WriteTo(output, _repeated_actionMask_codec);
       if (customObservation_ != null) {
-        output.WriteRawTag(98);
+        output.WriteRawTag(106);
         output.WriteMessage(CustomObservation);
       }
       if (_unknownFields != null) {
@@ -332,6 +351,9 @@ namespace MLAgents.CommunicatorObjects {
         size += 1 + 1;
       }
       if (MaxStepReached != false) {
+        size += 1 + 1;
+      }
+      if (IsDemonstration != false) {
         size += 1 + 1;
       }
       if (Id != 0) {
@@ -370,6 +392,9 @@ namespace MLAgents.CommunicatorObjects {
       }
       if (other.MaxStepReached != false) {
         MaxStepReached = other.MaxStepReached;
+      }
+      if (other.IsDemonstration != false) {
+        IsDemonstration = other.IsDemonstration;
       }
       if (other.Id != 0) {
         Id = other.Id;
@@ -432,15 +457,19 @@ namespace MLAgents.CommunicatorObjects {
             break;
           }
           case 80: {
+            IsDemonstration = input.ReadBool();
+            break;
+          }
+          case 88: {
             Id = input.ReadInt32();
             break;
           }
-          case 90:
-          case 88: {
+          case 98:
+          case 96: {
             actionMask_.AddEntriesFrom(input, _repeated_actionMask_codec);
             break;
           }
-          case 98: {
+          case 106: {
             if (customObservation_ == null) {
               CustomObservation = new global::MLAgents.CommunicatorObjects.CustomObservation();
             }

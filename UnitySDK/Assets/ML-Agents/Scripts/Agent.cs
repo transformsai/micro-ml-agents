@@ -75,6 +75,11 @@ namespace MLAgents
         public bool maxStepReached;
 
         /// <summary>
+        /// Whether or not the AgentInfo came from a human demonstration.
+        /// </summary>
+        public bool isDemonstration;
+
+        /// <summary>
         /// Unique identifier each agent receives at initialization. It is used
         /// to separate between different agents in the environment.
         /// </summary>
@@ -85,6 +90,7 @@ namespace MLAgents
         /// to an action in addition to a scalar reward.
         /// </summary>
         public CustomObservation customObservation;
+
 
         /// <summary>
         /// Converts a AgentInfo to a protobuffer generated AgentInfoProto
@@ -101,6 +107,7 @@ namespace MLAgents
                 TextObservation = textObservation,
                 Reward = reward,
                 MaxStepReached = maxStepReached,
+                IsDemonstration = isDemonstration,
                 Done = done,
                 Id = id,
                 CustomObservation = customObservation
@@ -293,6 +300,9 @@ namespace MLAgents
         /// Whether or not the agent reached the maximum number of steps.
         bool maxStepReached;
 
+        /// Whether or not the current action came from a demonstration
+        bool isDemonstration;
+
         /// Keeps track of the number of steps taken by the agent in this episode.
         /// Note that this value is different for each agent, and may not overlap
         /// with the step counter in the Academy, since agents reset based on
@@ -322,6 +332,12 @@ namespace MLAgents
         /// Demonstration recorder.
         /// </summary>
         private DemonstrationRecorder recorder;
+
+
+        /// <summary>
+        /// Whether or not we can control the brain when using a LearningPlayerBrain.
+        /// </summary>
+        public bool isControllable;
 
         /// Monobehavior function that is called when the attached GameObject
         /// becomes enabled or active.
@@ -564,6 +580,7 @@ namespace MLAgents
 
             info.visualObservations = new List<Texture2D>();
             info.customObservation = null;
+            info.isDemonstration = false;
         }
 
         /// <summary>
@@ -651,6 +668,7 @@ namespace MLAgents
             info.reward = reward;
             info.done = done;
             info.maxStepReached = maxStepReached;
+            info.isDemonstration = isDemonstration;
             info.id = id;
 
             brain.SendState(this, info);
@@ -1051,6 +1069,7 @@ namespace MLAgents
                 done = false;
                 maxStepReached = false;
                 requestDecision = false;
+                isDemonstration = false;
 
                 hasAlreadyReset = false;
             }
@@ -1067,6 +1086,7 @@ namespace MLAgents
                 maxStepReached = false;
                 requestDecision = false;
                 requestAction = false;
+                isDemonstration = false;
 
                 hasAlreadyReset = false;
                 OnDisable();
@@ -1187,5 +1207,14 @@ namespace MLAgents
         {
             info.customObservation = customObservation;
         }
+
+        /// <summary>
+        /// Sets whether or not the action was a demonstration.false Set from LearningPlayerBrain.
+        /// <param name="flag">True or false.</param>
+        public void SetIsDemonstration(bool flag)
+        {
+            isDemonstration = flag;
+        }
+
     }    
 }

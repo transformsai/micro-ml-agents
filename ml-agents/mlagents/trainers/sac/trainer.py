@@ -4,6 +4,7 @@
 
 import logging
 from collections import deque, defaultdict
+import random
 
 import numpy as np
 import tensorflow as tf
@@ -97,6 +98,10 @@ class SACTrainer(Trainer):
         self.stats = stats
 
         self.training_buffer = PriorityBuffer(
+            max_size=self.trainer_parameters["buffer_size"]
+        )
+
+        self.demo_buffer = PriorityBuffer(
             max_size=self.trainer_parameters["buffer_size"]
         )
 
@@ -306,9 +311,11 @@ class SACTrainer(Trainer):
                     # value is a dictionary from name of reward to value estimate of the value head
                     value = stored_take_action_outputs["value"]
                     new_exp["actions"] = actions[next_idx]
+                    new_exp["is_demonstration"] = next_info.previous_is_demonstration[next_idx]
                     new_exp["prev_action"] = stored_info.previous_vector_actions[idx]
                     new_exp["masks"] = 1.0
                     new_exp["done"] = next_info.local_done[idx]
+                    # print(next_info.previous_is_demonstration[idx], next_info.previous_vector_actions[idx])
 
                     new_exp["environment_rewards"] = np.array(next_info.rewards)[next_idx]
 
@@ -338,6 +345,10 @@ class SACTrainer(Trainer):
                             ]
                     q1_losses = self.policy.calculate_loss([new_exp])
                     self.training_buffer.add([new_exp], q1_losses)
+                    # if new_exp["is_demonstration"]:
+                    #     self.demo_buffer.add([new_exp], q1_losses)
+                    # else:
+                    #     self.training_buffer.add([new_exp], q1_losses)
 
                 if not next_info.local_done[next_idx]:
                     if agent_id not in self.episode_steps:
@@ -408,7 +419,7 @@ class SACTrainer(Trainer):
         """
         return (
             len(self.training_buffer)
-            > self.trainer_parameters["batch_size"]
+            > self.trainer_parameters["batch_size"] 
             and self.step % self.train_interval == 0
             and self.step >= self.trainer_parameters["buffer_init_steps"]
         )
@@ -436,7 +447,10 @@ class SACTrainer(Trainer):
         )
         num_epoch = self.trainer_parameters["num_epoch"]
         for _ in range(num_epoch):
-            buffer = self.training_buffer
+            if(random.random() > 0.6 and len(self.demo_buffer) > self.trainer_parameters["batch_size"]):
+                buffer = self.demo_buffer
+            else:
+                buffer = self.training_buffer
             if (
                 len(buffer) >= self.trainer_parameters["batch_size"]
             ):

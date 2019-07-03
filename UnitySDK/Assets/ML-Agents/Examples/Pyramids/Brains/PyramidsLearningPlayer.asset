@@ -36,3 +36,4 @@ MonoBehaviour:
   - key: 97
     branchIndex: 0
     value: 4
+  isControllable: 0
