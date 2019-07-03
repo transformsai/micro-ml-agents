@@ -297,7 +297,7 @@ class SACTrainer(Trainer):
                                 (len(stored_info.agents), self.policy.m_size)
                             )
                         new_exp["memory"] = stored_info.memories[idx]
-                    actions = stored_take_action_outputs["action"]
+                    actions = next_info.previous_vector_actions
                     if self.policy.use_continuous_act:
                         pass
                     else:
@@ -305,10 +305,12 @@ class SACTrainer(Trainer):
                     a_dist = stored_take_action_outputs["log_probs"]
                     # value is a dictionary from name of reward to value estimate of the value head
                     value = stored_take_action_outputs["value"]
-                    new_exp["actions"] = actions[idx]
+                    new_exp["actions"] = actions[next_idx]
                     new_exp["prev_action"] = stored_info.previous_vector_actions[idx]
                     new_exp["masks"] = 1.0
                     new_exp["done"] = next_info.local_done[idx]
+
+                    new_exp["environment_rewards"] = np.array(next_info.rewards)[next_idx]
 
                     for name, reward in tmp_rewards_dict.items():
                         # 0 because we use the scaled reward to train the agent
@@ -331,9 +333,9 @@ class SACTrainer(Trainer):
                             rewards[agent_id] += np.array(next_info.rewards)[next_idx]
                         else:
                             use_unscaled = 0
-                        rewards[agent_id] += tmp_rewards_dict[name][use_unscaled][
-                            next_idx
-                        ]
+                            rewards[agent_id] += tmp_rewards_dict[name][use_unscaled][
+                                next_idx
+                            ]
                     q1_losses = self.policy.calculate_loss([new_exp])
                     self.training_buffer.add([new_exp], q1_losses)
 
@@ -474,8 +476,8 @@ class SACTrainer(Trainer):
         self.stats["Losses/Q1 Loss"].append(np.mean(q1loss_total))
         self.stats["Losses/Q2 Loss"].append(np.mean(q2loss_total))
         self.stats["Policy/Entropy Coeff"].append(np.mean(entcoeff_total))
-        sampled_minibatch = buffer.sample_mini_batch(
-            self.trainer_parameters["batch_size"]//self.policy.sequence_length
+        sampled_minibatch, _, _ = buffer.get_batch(
+            self.trainer_parameters["batch_size"]
         )
         for _, _reward_signal in self.policy.reward_signals.items():
             _stats = _reward_signal.update(sampled_minibatch, n_sequences)
