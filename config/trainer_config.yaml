@@ -124,7 +124,7 @@ PyramidsLearning:
     reward_signals:
         extrinsic: 
             strength: 1.0
-            gamma: 0.99
+            gamma: 0.995
         # gail:
         #     strength: 0.2
         #     gamma: 0.9
@@ -138,10 +138,10 @@ PyramidsLearningPlayer:
     summary_freq: 2000
     time_horizon: 128
     batch_size: 128
-    buffer_size: 20000
+    buffer_size: 1000000
     hidden_units: 512
     num_layers: 2
-    init_entcoef: 0.05
+    init_entcoef: 0.1
     max_steps: 5.0e6
     use_recurrent: false
     reward_signals:
