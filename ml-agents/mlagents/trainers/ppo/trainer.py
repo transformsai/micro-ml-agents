@@ -501,7 +501,7 @@ class PPOTrainer(Trainer):
                 if self.use_curiosity:
                     for i, _ in enumerate(self.policy.model.visual_in):
                         _obs = mini_batch['next_visual_obs%d' % i]
-                        if self.sequence_length > 1 and self.use_recurrent:
+                        if self.policy.sequence_length > 1 and self.use_recurrent:
                             (_batch, _seq, _w, _h, _c) = _obs.shape
                             update_buffer['next_visual_obs%d' % i].extend(_obs.reshape(
                                 [-1, _w, _h, _c]))
