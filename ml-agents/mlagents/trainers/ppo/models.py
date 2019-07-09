@@ -1,16 +1,244 @@
 import logging
 import numpy as np
+import sys
 
 import tensorflow as tf
 from mlagents.trainers.models import LearningModel
 
 logger = logging.getLogger("mlagents.trainers")
 
+# Variable scope in which created variables will be placed under
+TOWER_SCOPE_NAME = "tower"
+
+
+class PPOMultiGPUModel(object):
+    def __init__(self,
+        brain,
+        lr=1e-4,
+        h_size=128,
+        epsilon=0.2,
+        beta=1e-3,
+        max_step=5e6,
+        normalize=False,
+        use_recurrent=False,
+        num_layers=2,
+        m_size=None,
+        use_curiosity=False,
+        curiosity_strength=0.01,
+        curiosity_enc_size=128,
+        seed=0,
+        devices=['/cpu:0']
+    ):
+        """
+        A multi GPU wrapper for PPO model
+        """
+        self.brain = brain
+        self.act_size = brain.vector_action_space_size
+        self.use_curiosity = use_curiosity
+        self.use_recurrent = use_recurrent
+        self.vec_obs_size = (
+            brain.vector_observation_space_size * brain.num_stacked_vector_observations
+        )
+        self.vis_obs_size = brain.number_visual_observations
+
+        self.placeholders = {}
+        self.create_placeholders()
+        input_keys = self.placeholders.keys()
+
+        self.num_epoch = tf.placeholder(tf.int64)
+        self.batch_size = tf.placeholder(tf.int64)
+        self.buffer_size = tf.placeholder(tf.int64)
+        dataset = tf.data.Dataset \
+                .from_tensor_slices(tuple([self.placeholders[key] for key in input_keys])) \
+                .shuffle(self.buffer_size) \
+                .batch(self.batch_size) \
+                .repeat(self.num_epoch) \
+                .prefetch(self.buffer_size)
+
+        self.ds_iter = dataset.make_initializable_iterator()
+
+        feature_list = [{} for _ in range(len(devices))]
+        features = self.ds_iter.get_next()
+        for key, feature in zip(input_keys, features):
+            splits = tf.split(feature, len(devices))
+            for i in range(len(splits)):
+                feature_list[i][key] = splits[i]
+
+        self.towers = []
+        for device_id, device in enumerate(devices):
+            with tf.device(device):
+                with tf.variable_scope(TOWER_SCOPE_NAME, reuse=tf.AUTO_REUSE) as scope:
+                    self.towers.append(PPOModel(brain,
+                                feature_list[device_id],
+                                lr=lr,
+                                h_size=h_size,
+                                epsilon=epsilon,
+                                beta=beta,
+                                max_step=max_step,
+                                normalize=normalize,
+                                use_recurrent=use_recurrent,
+                                num_layers=num_layers,
+                                m_size=m_size,
+                                use_curiosity=use_curiosity,
+                                curiosity_strength=curiosity_strength,
+                                curiosity_enc_size=curiosity_enc_size,
+                                seed=seed))
+
+        self.value_loss = tf.reduce_mean(tf.stack([t.value_loss for t in self.towers]))
+        self.policy_loss = tf.reduce_mean(tf.stack([t.policy_loss for t in self.towers]))
+
+        self.optimizer = self.towers[0].optimizer
+        avg_grad = self.average_gradients([t.grads for t in self.towers])
+        self.update_batch = self.optimizer.apply_gradients(avg_grad)
+
+    def create_placeholders(self):
+        self.placeholders["sequence_length"] = tf.placeholder(
+            shape=None, dtype=tf.int32, name="sequence_length"
+        )
+        self.placeholders["masks"] = tf.placeholder(shape=[None], dtype=tf.float32, name="masks")
+
+        if self.brain.vector_action_space_type == "continuous":
+            self.placeholders["action_probs"] = tf.placeholder(
+                shape=[None, self.act_size[0]], dtype=tf.float32, name="old_probabilities"
+            )
+            self.placeholders["epsilon"] = tf.placeholder(
+                shape=[None, self.act_size[0]], dtype=tf.float32, name="epsilon"
+            )
+            self.placeholders["actions_pre"] = tf.placeholder(
+                shape=[None, self.act_size[0]], dtype=tf.float32, name="actions_pre"
+            )
+        else:
+            self.placeholders["action_probs"] = tf.placeholder(
+                shape=[None, sum(self.act_size)], dtype=tf.float32, name="old_probabilities"
+            )
+            self.placeholders["actions"] = tf.placeholder(
+                shape=[None, len(self.act_size)], dtype=tf.int32, name="action_holder"
+            )
+            self.placeholders["action_mask"] = tf.placeholder(
+                shape=[None, sum(self.act_size)], dtype=tf.float32, name="action_masks"
+            )
+            if self.use_recurrent:
+                self.placeholders["prev_action"] = tf.placeholder(
+                    shape=[None, len(self.act_size)], dtype=tf.int32, name="prev_action"
+                )
+
+        if self.vec_obs_size > 0:
+            self.placeholders["vector_obs"] = tf.placeholder(
+                shape=[None, self.vec_obs_size], dtype=tf.float32, name="vector_obs"
+            )
+
+        if self.vis_obs_size > 0:
+            for i in range(self.brain.number_visual_observations):
+                self.placeholders["visual_obs" + str(i)] = self.create_visual_input(
+                    self.brain.camera_resolutions[i], name="visual_obs" + str(i)
+                )
+
+        if self.use_recurrent:
+            self.placeholders["memory"] = tf.placeholder(
+                shape=[None, self.m_size], dtype=tf.float32, name="recurrent_in"
+            )
+
+
+        self.placeholders["is_update"] = tf.placeholder(
+            shape=None, dtype=tf.bool, name="is_update")
+        self.placeholders["discounted_returns"] = tf.placeholder(
+            shape=[None], dtype=tf.float32, name="discounted_rewards"
+        )
+
+        self.placeholders["value_estimates"] = tf.placeholder(
+            shape=[None], dtype=tf.float32, name="old_value_estimates"
+        )
+
+        self.placeholders["advantages"] = tf.placeholder(
+            shape=[None, 1], dtype=tf.float32, name="advantages"
+        )
+
+        if self.use_curiosity:
+            if self.vis_obs_size > 0:
+                for i in range(self.vis_obs_size):
+                    self.placeholders["next_visual_obs" + str(i)] = self.create_visual_input(
+                        self.brain.camera_resolutions[i],
+                        name="next_visual_obs_" + str(i),
+                    )
+
+            if self.vec_obs_size > 0:
+                self.placeholders["next_vector_in"] = tf.placeholder(
+                    shape=[None, self.vec_obs_size],
+                    dtype=tf.float32,
+                    name="next_vector_observation",
+                )
+    @staticmethod
+    def create_visual_input(camera_parameters, name):
+        """
+        Creates image input op.
+        :param camera_parameters: Parameters for visual observation from BrainInfo.
+        :param name: Desired name of input op.
+        :return: input op.
+        """
+        o_size_h = camera_parameters["height"]
+        o_size_w = camera_parameters["width"]
+        bw = camera_parameters["blackAndWhite"]
+
+        if bw:
+            c_channels = 1
+        else:
+            c_channels = 3
+
+        visual_in = tf.placeholder(
+            shape=[None, o_size_h, o_size_w, c_channels], dtype=tf.float32, name=name
+        )
+        return visual_in
+
+    def average_gradients(self, tower_grads):
+        """Averages gradients across towers.
+        Calculate the average gradient for each shared variable across all towers.
+        Note that this function provides a synchronization point across all towers.
+        Args:
+            tower_grads: List of lists of (gradient, variable) tuples. The outer
+                list is over individual gradients. The inner list is over the
+                gradient calculation for each tower.
+        Returns:
+           List of pairs of (gradient, variable) where the gradient has been
+               averaged across all towers.
+        TODO(ekl): We could use NCCL if this becomes a bottleneck.
+        """
+
+        average_grads = []
+        for grad_and_vars in zip(*tower_grads):
+
+            # Note that each grad_and_vars looks like the following:
+            #   ((grad0_gpu0, var0_gpu0), ... , (grad0_gpuN, var0_gpuN))
+            grads = []
+            for g, _ in grad_and_vars:
+                if g is not None:
+                    # Add 0 dimension to the gradients to represent the tower.
+                    expanded_g = tf.expand_dims(g, 0)
+
+                    # Append on a 'tower' dimension which we will average over below.
+                    grads.append(expanded_g)
+
+            if not grads:
+                continue
+
+            # Average over the 'tower' dimension.
+            grad = tf.concat(axis=0, values=grads)
+            grad = tf.reduce_mean(grad, 0)
+
+            # Keep in mind that the Variables are redundant because they are shared
+            # across towers. So .. we will just return the first tower's pointer to
+            # the Variable.
+            v = grad_and_vars[0][1]
+            grad_and_var = (grad, v)
+            average_grads.append(grad_and_var)
+
+        return average_grads
+
 
 class PPOModel(LearningModel):
     def __init__(
         self,
         brain,
+        features,
         lr=1e-4,
         h_size=128,
         epsilon=0.2,
@@ -42,27 +270,12 @@ class PPOModel(LearningModel):
         """
         LearningModel.__init__(self, m_size, normalize, use_recurrent, brain, seed)
         self.use_curiosity = use_curiosity
-        self.num_epoch = tf.placeholder(tf.int64)
-        self.batch_size = tf.placeholder(tf.int64)
-        self.buffer_size = tf.placeholder(tf.int64)
-        self.create_placeholders()
-        input_keys = self.placeholders.keys()
-        # fix order, prefetch size
-        dataset = tf.data.Dataset \
-                .from_tensor_slices(tuple([self.placeholders[key] for key in input_keys])) \
-                .shuffle(self.buffer_size) \
-                .batch(self.batch_size) \
-                .repeat(self.num_epoch) \
-                .prefetch(self.buffer_size)
-                
-        self.ds_iter = dataset.make_initializable_iterator()
 
-        self.features = {}
-        features = self.ds_iter.get_next()
-        for key, feature in zip(input_keys, features):
-            self.features[key] = feature
+        self.features = features
 
-        self.init_model()
+        self.sequence_length = self.features["sequence_length"]
+        self.mask_input = self.features["masks"]
+        self.mask = tf.cast(self.mask_input, tf.int32)
 
         if num_layers < 1:
             num_layers = 1
@@ -289,7 +502,7 @@ class PPOModel(LearningModel):
         decay_beta = tf.train.polynomial_decay(
             beta, self.global_step, max_step, 1e-5, power=1.0
         )
-        optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+        self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
 
         clipped_value_estimate = self.old_value + tf.clip_by_value(
             tf.reduce_sum(value, axis=1) - self.old_value, -decay_epsilon, decay_epsilon
@@ -325,4 +538,4 @@ class PPOModel(LearningModel):
 
         if self.use_curiosity:
             self.loss += 10 * (0.2 * self.forward_loss + 0.8 * self.inverse_loss)
-        self.update_batch = optimizer.minimize(self.loss)
+        self.grads = self.optimizer.compute_gradients(self.loss)

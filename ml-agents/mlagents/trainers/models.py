@@ -27,8 +27,6 @@ class LearningModel(object):
             brain.vector_observation_space_size * brain.num_stacked_vector_observations
         )
         self.vis_obs_size = brain.number_visual_observations
-        self.placeholders = {}
-        self.create_basic_placeholders()
         tf.Variable(
             int(brain.vector_action_space_type == "continuous"),
             name="is_continuous_control",
@@ -71,78 +69,27 @@ class LearningModel(object):
         """Swish activation function. For more info: https://arxiv.org/abs/1710.05941"""
         return tf.multiply(input_activation, tf.nn.sigmoid(input_activation))
 
-    @staticmethod
-    def create_visual_input(camera_parameters, name):
-        """
-        Creates image input op.
-        :param camera_parameters: Parameters for visual observation from BrainInfo.
-        :param name: Desired name of input op.
-        :return: input op.
-        """
-        o_size_h = camera_parameters["height"]
-        o_size_w = camera_parameters["width"]
-        bw = camera_parameters["blackAndWhite"]
+    # @staticmethod
+    # def create_visual_input(camera_parameters, name):
+    #     """
+    #     Creates image input op.
+    #     :param camera_parameters: Parameters for visual observation from BrainInfo.
+    #     :param name: Desired name of input op.
+    #     :return: input op.
+    #     """
+    #     o_size_h = camera_parameters["height"]
+    #     o_size_w = camera_parameters["width"]
+    #     bw = camera_parameters["blackAndWhite"]
 
-        if bw:
-            c_channels = 1
-        else:
-            c_channels = 3
+    #     if bw:
+    #         c_channels = 1
+    #     else:
+    #         c_channels = 3
 
-        visual_in = tf.placeholder(
-            shape=[None, o_size_h, o_size_w, c_channels], dtype=tf.float32, name=name
-        )
-        return visual_in
-
-    def create_basic_placeholders(self):
-        self.placeholders["sequence_length"] = tf.placeholder(
-            shape=None, dtype=tf.int32, name="sequence_length"
-        )
-        self.placeholders["masks"] = tf.placeholder(shape=[None], dtype=tf.float32, name="masks")
-
-        if self.brain.vector_action_space_type == "continuous":
-            self.placeholders["action_probs"] = tf.placeholder(
-                shape=[None, self.act_size[0]], dtype=tf.float32, name="old_probabilities"
-            )
-            self.placeholders["epsilon"] = tf.placeholder(
-                shape=[None, self.act_size[0]], dtype=tf.float32, name="epsilon"
-            )
-            self.placeholders["actions_pre"] = tf.placeholder(
-                shape=[None, self.act_size[0]], dtype=tf.float32, name="actions_pre"
-            )
-        else:
-            self.placeholders["action_probs"] = tf.placeholder(
-                shape=[None, sum(self.act_size)], dtype=tf.float32, name="old_probabilities"
-            )
-            self.placeholders["actions"] = tf.placeholder(
-                shape=[None, len(self.act_size)], dtype=tf.int32, name="action_holder"
-            )
-            self.placeholders["action_mask"] = tf.placeholder(
-                shape=[None, sum(self.act_size)], dtype=tf.float32, name="action_masks"
-            )
-            if self.use_recurrent:
-                self.placeholders["prev_action"] = tf.placeholder(
-                    shape=[None, len(self.act_size)], dtype=tf.int32, name="prev_action"
-                )
-        if self.vec_obs_size > 0:
-            self.placeholders["vector_obs"] = tf.placeholder(
-                shape=[None, self.vec_obs_size], dtype=tf.float32, name="vector_obs"
-            )
-
-        if self.vis_obs_size > 0:
-            for i in range(self.brain.number_visual_observations):
-                self.placeholders["visual_obs" + str(i)] = self.create_visual_input(
-                    self.brain.camera_resolutions[i], name="visual_obs" + str(i)
-                )
-
-        if self.use_recurrent:
-            self.placeholders["memory"] = tf.placeholder(
-                shape=[None, self.m_size], dtype=tf.float32, name="recurrent_in"
-            )
-
-    def init_model(self):
-        self.sequence_length = self.features["sequence_length"]
-        self.mask_input = self.features["masks"]
-        self.mask = tf.cast(self.mask_input, tf.int32)
+    #     visual_in = tf.placeholder(
+    #         shape=[None, o_size_h, o_size_w, c_channels], dtype=tf.float32, name=name
+    #     )
+    #     return visual_in
 
     def create_vector_input(self, name="vector_obs"):
         """

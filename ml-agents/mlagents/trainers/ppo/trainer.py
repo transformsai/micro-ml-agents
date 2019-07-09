@@ -7,6 +7,7 @@ from collections import deque, defaultdict
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.client import device_lib
 
 from mlagents.envs import AllBrainInfo, BrainInfo
 from mlagents.trainers.buffer import Buffer
@@ -60,7 +61,8 @@ class PPOTrainer(Trainer):
         self.check_param_keys()
         self.use_curiosity = bool(trainer_parameters["use_curiosity"])
         self.step = 0
-        self.policy = PPOPolicy(seed, brain, trainer_parameters, self.is_training, load)
+        self.devices = get_available_gpus()
+        self.policy = PPOPolicy(seed, brain, trainer_parameters, self.is_training, load, self.devices)
 
         stats = {
             "Environment/Cumulative Reward": [],
@@ -545,3 +547,9 @@ def get_gae(rewards, value_estimates, value_next=0.0, gamma=0.99, lambd=0.95):
     delta_t = rewards + gamma * value_estimates[1:] - value_estimates[:-1]
     advantage = discount_rewards(r=delta_t, gamma=gamma * lambd)
     return advantage
+
+
+def get_available_gpus():
+    local_device_protos = device_lib.list_local_devices()
+    gpus = [x.name for x in local_device_protos if x.device_type == 'GPU']
+    return gpus if len(gpus) > 0 else ['/cpu:0']
