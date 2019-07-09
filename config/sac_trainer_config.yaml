@@ -142,7 +142,7 @@ PyramidsLearning:
     hidden_units: 512
     num_layers: 2
     max_steps: 5.0e5
-    use_recurrent: true
+    use_recurrent: false
     sequence_length: 32
     target_update_steps: 5
     train_interval: 5
@@ -155,7 +155,7 @@ PyramidsLearning:
     #   demo_steps: 10000
     reward_signals: 
         extrinsic:
-            strength: 0.0
+            strength: 1.0
             gamma: 0.99
         # gail:
         #     num_epoch: 1
