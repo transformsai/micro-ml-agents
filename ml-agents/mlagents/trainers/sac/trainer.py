@@ -107,6 +107,7 @@ class SACTrainer(Trainer):
 
         self._reward_buffer = deque(maxlen=reward_buff_cap)
         self.episode_steps = {}
+        self.demo_training_count = 0
         self.agent_last_infos = AgentLastInfos()
 
     def __str__(self):
@@ -345,8 +346,9 @@ class SACTrainer(Trainer):
                             ]
                     q1_losses = self.policy.calculate_loss([new_exp])
                     self.training_buffer.add([new_exp], q1_losses)
-                    # if new_exp["is_demonstration"]:
-                    #     self.demo_buffer.add([new_exp], q1_losses)
+                    if new_exp["is_demonstration"]:
+                        self.demo_training_count += 5
+                        self.demo_buffer.add([new_exp], q1_losses)
                     # else:
                     #     self.training_buffer.add([new_exp], q1_losses)
 
@@ -447,8 +449,10 @@ class SACTrainer(Trainer):
         )
         num_epoch = self.trainer_parameters["num_epoch"]
         for _ in range(num_epoch):
-            if(random.random() > 0.6 and len(self.demo_buffer) > self.trainer_parameters["batch_size"]):
+            if(self.demo_training_count > 0 and len(self.demo_buffer) > self.trainer_parameters["batch_size"] ):
+                self.demo_training_count -= 1 #self.trainer_parameters["batch_size"]//10
                 buffer = self.demo_buffer
+                print("Using demo for {}".format(self.demo_training_count))
             else:
                 buffer = self.training_buffer
             if (

@@ -329,7 +329,7 @@ class PriorityBuffer:
         self.buffer = {}
         self.priorities = np.zeros(self.max_size)
         self.init_length = 0
-        self.eviction_strategy = 'rank'
+        self.eviction_strategy = 'rand'
 
     def __len__(self):
         return self.cur_size
@@ -414,8 +414,9 @@ class PriorityBuffer:
             batch_out[key] = np.array(batch_out[key])
 
         total_priority = np.sum(self.priorities)
-        beta = 1.0
+        beta = 0.4
         is_weights = np.power(1/(self.cur_size * (self.priorities[idxs] / total_priority)), beta)
+        # print(is_weights)
         is_weights /= is_weights.max()
         #print(batch_out['environment_rewards'], self.priorities[idxs])
         return batch_out, self.priorities[idxs], is_weights
