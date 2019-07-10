@@ -7,7 +7,6 @@ from collections import deque, defaultdict
 from typing import Any, List
 
 import numpy as np
-import tensorflow as tf
 
 from mlagents.envs import AllBrainInfo, BrainInfo
 from mlagents.trainers.buffer import Buffer

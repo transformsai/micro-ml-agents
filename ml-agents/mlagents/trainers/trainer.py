@@ -1,7 +1,7 @@
 # # Unity ML-Agents Toolkit
 import logging
 import os
-import tensorflow as tf
+import torch
 import numpy as np
 
 from mlagents.envs import UnityException, AllBrainInfo, BrainInfo
@@ -43,7 +43,6 @@ class Trainer(object):
         self.trainer_metrics = TrainerMetrics(
             path=self.summary_path + ".csv", brain_name=self.brain_name
         )
-        self.summary_writer = tf.summary.FileWriter(self.summary_path)
         self.policy = None
 
     def __str__(self):
@@ -231,35 +230,12 @@ class Trainer(object):
                         self.run_id, self.brain_name, self.get_step, is_training
                     )
                 )
-            summary = tf.Summary()
+            # summary = tf.Summary()
             for key in self.stats:
                 if len(self.stats[key]) > 0:
-                    stat_mean = float(np.mean(self.stats[key]))
-                    summary.value.add(tag="{}".format(key), simple_value=stat_mean)
+            #         stat_mean = float(np.mean(self.stats[key]))
+            #         summary.value.add(tag="{}".format(key), simple_value=stat_mean)
                     self.stats[key] = []
-            summary.value.add(tag="Environment/Lesson", simple_value=lesson_num)
-            self.summary_writer.add_summary(summary, self.get_step)
-            self.summary_writer.flush()
-
-    def write_tensorboard_text(self, key, input_dict):
-        """
-        Saves text to Tensorboard.
-        Note: Only works on tensorflow r1.2 or above.
-        :param key: The name of the text.
-        :param input_dict: A dictionary that will be displayed in a table on Tensorboard.
-        """
-        try:
-            with tf.Session() as sess:
-                s_op = tf.summary.text(
-                    key,
-                    tf.convert_to_tensor(
-                        ([[str(x), str(input_dict[x])] for x in input_dict])
-                    ),
-                )
-                s = sess.run(s_op)
-                self.summary_writer.add_summary(s, self.get_step)
-        except:
-            LOGGER.info(
-                "Cannot write text summary for Tensorboard. Tensorflow version must be r1.2 or above."
-            )
-            pass
+            # summary.value.add(tag="Environment/Lesson", simple_value=lesson_num)
+            # self.summary_writer.add_summary(summary, self.get_step)
+            # self.summary_writer.flush()

@@ -9,7 +9,7 @@ import sys
 from typing import *
 
 import numpy as np
-import tensorflow as tf
+import torch
 from time import time
 
 from mlagents.envs import AllBrainInfo, BrainParameters
@@ -17,8 +17,6 @@ from mlagents.envs.base_unity_environment import BaseUnityEnvironment
 from mlagents.envs.exception import UnityEnvironmentException
 from mlagents.trainers import Trainer, TrainerMetrics
 from mlagents.trainers.ppo.trainer import PPOTrainer
-from mlagents.trainers.bc.offline_trainer import OfflineBCTrainer
-from mlagents.trainers.bc.online_trainer import OnlineBCTrainer
 from mlagents.trainers.meta_curriculum import MetaCurriculum
 
 
@@ -71,7 +69,7 @@ class TrainerController(object):
         self.training_start_time = time()
         self.fast_simulation = fast_simulation
         np.random.seed(self.seed)
-        tf.set_random_seed(self.seed)
+        torch.manual_seed(self.seed)
 
     def _get_measure_vals(self):
         if self.meta_curriculum:
@@ -226,16 +224,11 @@ class TrainerController(object):
             self.meta_curriculum.set_all_curriculums_to_lesson_num(self.lesson)
         self._create_model_path(self.model_path)
 
-        tf.reset_default_graph()
-
         # Prevent a single session from taking all GPU memory.
         self.initialize_trainers(trainer_config)
         for _, t in self.trainers.items():
             self.logger.info(t)
 
-        if self.train_model:
-            for brain_name, trainer in self.trainers.items():
-                trainer.write_tensorboard_text("Hyperparameters", trainer.parameters)
         try:
             curr_info = self._reset_env(env)
             while (

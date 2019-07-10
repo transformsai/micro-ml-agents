@@ -5,8 +5,6 @@ from collections import namedtuple
 import numpy as np
 import abc
 
-import tensorflow as tf
-
 logger = logging.getLogger("mlagents.trainers")
 
 RewardSignalResult = namedtuple(
