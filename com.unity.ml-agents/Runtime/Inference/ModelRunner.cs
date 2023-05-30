@@ -127,7 +127,7 @@ namespace TransformsAI.MicroMLAgents.Inference
 
             foreach (var agent in m_Infos)
             {
-                if (agent.SensorObservationSpecs.Length != m_Infos.Count) throw new Exception("Sensor Count Mismatch");
+                if (agent.SensorObservationSpecs.Length != m_ObservationSpecs.Length) throw new Exception("Sensor Count Mismatch");
                 for (var i = 0; i < agent.SensorObservationSpecs.Length; i++)
                 {
                     var agentSpec = agent.SensorObservationSpecs[i];
