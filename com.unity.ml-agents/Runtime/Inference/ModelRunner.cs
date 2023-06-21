@@ -176,11 +176,11 @@ namespace TransformsAI.MicroMLAgents.Inference
             try
             {
                 agentList.Add(agent);
-
                 DecideBatch(agentList);
             }
             finally
             {
+                agentList.Clear();
                 Pool.Value.Push(agentList);
             }
         }
